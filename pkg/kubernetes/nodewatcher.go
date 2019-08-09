@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"log"
+	"sync"
 	"time"
 )
 
@@ -29,41 +30,32 @@ func (nw *NodeWatcher) Start() {
 		return
 	}
 
-	nw.done = make(chan struct{}, 1)
-	nw.quit = make(chan struct{}, 1)
-
-	nw.nodes = make(chan []*Node, 1)
-	nw.errors = make(chan error, 1)
-
 	nw.isRunning = true
 
-	go func() {
-		timer := time.NewTicker(scanPeriod)
+	timer := time.NewTicker(scanPeriod)
 
-		for {
-			select {
-			case <-timer.C:
-				log.Println("Checking for nodes...")
+	for {
+		select {
+		case <-timer.C:
+			log.Println("Checking for nodes...")
 
-				nodes, err := nw.adapter.GetNodes()
-				if err != nil {
-					nw.errors <- err
-					continue
-				}
-
-				nw.nodes <- nodes
-
-			case <-nw.quit:
-				timer.Stop()
-
-				close(nw.errors)
-				close(nw.nodes)
-				close(nw.done)
-
-				return
+			nodes, err := nw.adapter.GetNodes()
+			if err != nil {
+				nw.errors <- err
+				continue
 			}
+
+			nw.nodes <- nodes
+		case <-nw.quit:
+			timer.Stop()
+
+			close(nw.errors)
+			close(nw.nodes)
+			close(nw.done)
+
+			return
 		}
-	}()
+	}
 }
 
 func (nw *NodeWatcher) Stop() {
@@ -82,20 +74,45 @@ func (nw *NodeWatcher) Stop() {
 	log.Println("NodeWatcher ends")
 }
 
-func (nw *NodeWatcher) Nodes() chan []*Node {
+func (nw *NodeWatcher) Nodes() <-chan []*Node {
 	return nw.nodes
 }
 
-func (nw *NodeWatcher) Errors() chan error {
+func (nw *NodeWatcher) Errors() <-chan error {
 	return nw.errors
 }
 
 func NewNodeWatcher(adapter KubeAdapter) *NodeWatcher {
-	return &NodeWatcher{adapter: adapter, isRunning: false, isClosed: false}
+	return &NodeWatcher{
+		adapter:   adapter,
+		isRunning: false,
+		isClosed:  false,
+		done:      make(chan struct{}, 1),
+		quit:      make(chan struct{}, 1),
+		nodes:     make(chan []*Node, 1),
+		errors:    make(chan error, 1),
+	}
 }
 
 func (nw *NodeWatcher) checkClosed() {
 	if nw.isClosed {
 		panic("NodeWatcher already closed")
 	}
+}
+
+func StartNodeWatcher(adapter KubeAdapter, quit <-chan struct{}, wg *sync.WaitGroup) *NodeWatcher {
+	wg.Add(1)
+
+	watcher := NewNodeWatcher(adapter)
+	go func() {
+		defer wg.Done()
+
+		go watcher.Start()
+
+		<-quit
+
+		watcher.Stop()
+	}()
+
+	return watcher
 }

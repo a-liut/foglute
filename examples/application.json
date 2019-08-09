@@ -1,0 +1,46 @@
+{
+  "name": "TestApp1",
+  "services": [
+    {
+      "name": "s1",
+      "image": "testapp/s1",
+      "t_proc": 2,
+      "hw_reqs": 1,
+      "iot_reqs": [
+        "smartvase"
+      ],
+      "sec_reqs": [
+        "anti_tampering",
+        "encryption"
+      ]
+    },
+    {
+      "name": "s2",
+      "image": "testapp/s2",
+      "t_proc": 2,
+      "hw_reqs": 1,
+      "iot_reqs": [
+        "smartvase"
+      ],
+      "sec_reqs": [
+        "anti_tampering"
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "src": "s1",
+      "dest": "s2",
+      "bandwidth": 10
+    }
+  ],
+  "max_latency": [
+    {
+      "chain": [
+        "s1",
+        "s2"
+      ],
+      "value": 150
+    }
+  ]
+}

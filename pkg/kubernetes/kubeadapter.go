@@ -2,10 +2,56 @@ package kubernetes
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"os/exec"
 	"strings"
 )
+
+type Node struct {
+	Name             string
+	Status           string
+	Roles            []string
+	Age              string
+	Version          string
+	InternalIP       string
+	ExternalIP       string
+	OSImage          string
+	KernelVersion    string
+	ContainerRuntime string
+}
+
+func (n *Node) String() string {
+	return fmt.Sprintf("%s (%s)", n.Name, n.Status)
+}
+
+func (n *Node) isMaster() bool {
+	for _, r := range n.Roles {
+		if r == "master" {
+			return true
+		}
+	}
+	return false
+}
+
+func Init(kubectlExec string) (*KubeAdapter, error) {
+	log.Println("Checking kubernetes...")
+
+	path, err := exec.LookPath(kubectlExec)
+	if err != nil {
+		return nil, fmt.Errorf("cannot find kubectl. %s", err)
+	}
+	log.Printf("using kubectl at %s\n", path)
+
+	var adapter KubeAdapter
+	adapter = NewCmdKubeAdapter(path)
+
+	return &adapter, nil
+}
+
+type KubeAdapter interface {
+	GetNodes() ([]*Node, error)
+}
 
 type CmdKubeAdapter struct {
 	execPath string
@@ -18,10 +64,6 @@ func (ka *CmdKubeAdapter) GetNodes() ([]*Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	//stderr, err := cmd.StderrPipe()
-	//if err != nil {
-	//	return nil, err
-	//}
 
 	err = cmd.Start()
 	if err != nil {
