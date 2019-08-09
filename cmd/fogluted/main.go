@@ -2,8 +2,8 @@ package main
 
 import (
 	"bytes"
-	"github.com/a-liut/foglute/pkg/kubernetes"
-	"github.com/a-liut/foglute/pkg/uds"
+	"foglute/pkg/kubernetes"
+	"foglute/pkg/uds"
 	"log"
 	"os"
 	"os/signal"
