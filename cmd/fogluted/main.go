@@ -30,7 +30,7 @@ func main() {
 	var wg sync.WaitGroup
 
 	// Start services
-	initNodeWatcher(adapter, quit, &wg)
+	go initNodeWatcher(adapter, quit, &wg)
 	go initUDSInterface(quit, &wg)
 
 	<-stopChan
@@ -44,13 +44,11 @@ func main() {
 }
 
 func initNodeWatcher(adapter *kubernetes.KubeAdapter, quit chan struct{}, wg *sync.WaitGroup) {
-	go func() {
-		watcher := kubernetes.StartNodeWatcher(*adapter, quit, wg)
+	watcher := kubernetes.StartNodeWatcher(*adapter, quit, wg)
 
-		for nodes := range watcher.Nodes() {
-			log.Println(nodes)
-		}
-	}()
+	for nodes := range watcher.Nodes() {
+		log.Println(nodes)
+	}
 }
 
 func initUDSInterface(quit chan struct{}, wg *sync.WaitGroup) {
