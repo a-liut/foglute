@@ -1,117 +1,61 @@
 package kubernetes
 
 import (
-	"bufio"
-	"fmt"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"log"
-	"os/exec"
-	"strings"
 )
 
-type Node struct {
-	Name             string
-	Status           string
-	Roles            []string
-	Age              string
-	Version          string
-	InternalIP       string
-	ExternalIP       string
-	OSImage          string
-	KernelVersion    string
-	ContainerRuntime string
-}
-
-func (n *Node) String() string {
-	return fmt.Sprintf("%s (%s)", n.Name, n.Status)
-}
-
-func (n *Node) isMaster() bool {
-	for _, r := range n.Roles {
-		if r == "master" {
-			return true
-		}
-	}
-	return false
-}
-
-func Init(kubectlExec string) (*KubeAdapter, error) {
+func Init() (*KubeAdapter, error) {
 	log.Println("Checking kubernetes...")
 
-	path, err := exec.LookPath(kubectlExec)
+	// creates the in-cluster config
+	clientset, err := getClient("")
 	if err != nil {
-		return nil, fmt.Errorf("cannot find kubectl. %s", err)
+		panic(err.Error())
 	}
-	log.Printf("using kubectl at %s\n", path)
 
 	var adapter KubeAdapter
-	adapter = NewCmdKubeAdapter(path)
+	adapter = NewCmdKubeAdapter(clientset)
 
 	return &adapter, nil
 }
 
+func getClient(path string) (*kubernetes.Clientset, error) {
+	var config *rest.Config
+	var err error
+	if path == "" {
+		config, err = rest.InClusterConfig()
+	} else {
+		config, err = clientcmd.BuildConfigFromFlags("", path)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return kubernetes.NewForConfig(config)
+}
+
 type KubeAdapter interface {
-	GetNodes() ([]*Node, error)
+	GetNodes() ([]v1.Node, error)
 }
 
 type CmdKubeAdapter struct {
-	execPath string
+	clientset *kubernetes.Clientset
 }
 
-func (ka *CmdKubeAdapter) GetNodes() ([]*Node, error) {
-	cmd := exec.Command(ka.execPath, "get", "nodes", "-o", "wide")
-
-	stdout, err := cmd.StdoutPipe()
+func (ka *CmdKubeAdapter) GetNodes() ([]v1.Node, error) {
+	knodes, err := ka.clientset.CoreV1().Nodes().List(metav1.ListOptions{})
 	if err != nil {
-		return nil, err
+		panic(err.Error())
 	}
 
-	err = cmd.Start()
-	if err != nil {
-		return nil, err
-	}
-
-	nodes := make([]*Node, 0)
-
-	scanner := bufio.NewScanner(stdout)
-
-	first := true
-	go func() {
-		for scanner.Scan() {
-			if !first {
-				line := scanner.Text()
-
-				parts := strings.Fields(line)
-
-				node := Node{
-					Name:             parts[0],
-					Status:           parts[1],
-					Roles:            []string{parts[2]}, // TODO: enable support for multiple roles
-					Age:              parts[3],
-					Version:          parts[4],
-					InternalIP:       parts[5],
-					ExternalIP:       parts[6],
-					OSImage:          parts[7],
-					KernelVersion:    parts[8],
-					ContainerRuntime: parts[9],
-				}
-
-				nodes = append(nodes, &node)
-			} else {
-				first = false
-			}
-		}
-		if err := scanner.Err(); err != nil {
-			log.Println(err)
-		}
-	}()
-
-	if err := cmd.Wait(); err != nil {
-		return nil, err
-	}
-
-	return nodes, nil
+	return knodes.Items, nil
 }
 
-func NewCmdKubeAdapter(path string) *CmdKubeAdapter {
-	return &CmdKubeAdapter{execPath: path}
+func NewCmdKubeAdapter(clientset *kubernetes.Clientset) *CmdKubeAdapter {
+	return &CmdKubeAdapter{clientset}
 }

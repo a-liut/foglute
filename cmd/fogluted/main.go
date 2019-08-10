@@ -11,10 +11,6 @@ import (
 	"syscall"
 )
 
-const (
-	KubectlExec = "kubectl"
-)
-
 func main() {
 	log.Println("Starting fogluted")
 
@@ -22,7 +18,7 @@ func main() {
 	quit := make(chan struct{}, 1)
 	signal.Notify(stopChan, syscall.SIGINT, syscall.SIGTERM)
 
-	adapter, err := kubernetes.Init(KubectlExec)
+	adapter, err := kubernetes.Init()
 	if err != nil {
 		log.Fatal(err)
 	}

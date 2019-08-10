@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	v1 "k8s.io/api/core/v1"
 	"log"
 	"sync"
 	"time"
@@ -17,7 +18,7 @@ type NodeWatcher struct {
 	done      chan struct{}
 	quit      chan struct{}
 
-	nodes  chan []*Node
+	nodes  chan []v1.Node
 	errors chan error
 }
 
@@ -74,7 +75,7 @@ func (nw *NodeWatcher) Stop() {
 	log.Println("NodeWatcher ends")
 }
 
-func (nw *NodeWatcher) Nodes() <-chan []*Node {
+func (nw *NodeWatcher) Nodes() <-chan []v1.Node {
 	return nw.nodes
 }
 
@@ -89,7 +90,7 @@ func NewNodeWatcher(adapter KubeAdapter) *NodeWatcher {
 		isClosed:  false,
 		done:      make(chan struct{}, 1),
 		quit:      make(chan struct{}, 1),
-		nodes:     make(chan []*Node, 1),
+		nodes:     make(chan []v1.Node, 1),
 		errors:    make(chan error, 1),
 	}
 }
