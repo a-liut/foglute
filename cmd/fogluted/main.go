@@ -43,7 +43,11 @@ func initNodeWatcher(adapter *kubernetes.KubeAdapter, quit chan struct{}, wg *sy
 	watcher := kubernetes.StartNodeWatcher(*adapter, quit, wg)
 
 	for nodes := range watcher.Nodes() {
-		log.Println(nodes)
+		log.Print("[")
+		for _, n := range nodes {
+			log.Print(n.Name)
+		}
+		log.Print("]")
 	}
 }
 

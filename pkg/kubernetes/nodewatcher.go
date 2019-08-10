@@ -18,6 +18,8 @@ type NodeWatcher struct {
 	done      chan struct{}
 	quit      chan struct{}
 
+	nodelist []v1.Node
+
 	nodes  chan []v1.Node
 	errors chan error
 }
@@ -33,30 +35,49 @@ func (nw *NodeWatcher) Start() {
 
 	nw.isRunning = true
 
-	timer := time.NewTicker(scanPeriod)
+	//log.Println("Fetch all nodes...")
+	//var err error
+	//nw.nodelist, err = nw.adapter.GetNodes()
+	//if err != nil {
+	//	nw.errors <- err
+	//
+	//	nw.teardown()
+	//	return
+	//}
+	//
+	//nw.nodes <- nw.nodelist
 
-	for {
-		select {
-		case <-timer.C:
-			log.Println("Checking for nodes...")
-
-			nodes, err := nw.adapter.GetNodes()
-			if err != nil {
-				nw.errors <- err
-				continue
+	informer := nw.adapter.GetNodeInformer(func(node *v1.Node) {
+		nw.nodelist = append(nw.nodelist, *node)
+		nw.nodes <- nw.nodelist
+	}, func(node *v1.Node) {
+		var i = -1
+		for idx, n := range nw.nodelist {
+			if n.GetUID() == node.GetUID() {
+				i = idx
+				break
 			}
-
-			nw.nodes <- nodes
-		case <-nw.quit:
-			timer.Stop()
-
-			close(nw.errors)
-			close(nw.nodes)
-			close(nw.done)
-
-			return
 		}
-	}
+
+		if i >= 0 {
+			nw.nodelist[len(nw.nodelist)-1], nw.nodelist[i] = nw.nodelist[i], nw.nodelist[len(nw.nodelist)-1]
+			nw.nodelist = nw.nodelist[:len(nw.nodelist)-1]
+			nw.nodes <- nw.nodelist
+		} else {
+			log.Printf("Node not found in previous list: %s", node)
+		}
+	})
+
+	<-nw.quit
+	informer.Stop()
+
+	nw.teardown()
+}
+
+func (nw *NodeWatcher) teardown() {
+	close(nw.errors)
+	close(nw.nodes)
+	close(nw.done)
 }
 
 func (nw *NodeWatcher) Stop() {

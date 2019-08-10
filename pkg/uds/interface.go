@@ -59,7 +59,6 @@ func (i *UDSocketInterface) Start() {
 			conn, err := l.AcceptUnix()
 			if err != nil {
 				if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
-					log.Println("Timeout!")
 					continue
 				}
 				log.Println("Failed to accept connection:", err.Error())
@@ -68,7 +67,6 @@ func (i *UDSocketInterface) Start() {
 			handlers.Add(1)
 			go func() {
 				defer handlers.Done()
-				log.Printf("Client connected [%s]", conn.RemoteAddr().Network())
 				var buf bytes.Buffer
 				_, err := io.Copy(&buf, conn)
 				if err != nil {
