@@ -3,7 +3,7 @@
   "services": [
     {
       "name": "s1",
-      "image": "testapp/s1",
+      "image": "hello-world",
       "t_proc": 2,
       "hw_reqs": 1,
       "iot_reqs": [
@@ -16,7 +16,7 @@
     },
     {
       "name": "s2",
-      "image": "testapp/s2",
+      "image": "hello-world",
       "t_proc": 2,
       "hw_reqs": 1,
       "iot_reqs": [

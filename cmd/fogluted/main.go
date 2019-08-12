@@ -2,6 +2,10 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"foglute/internal/model"
+	"foglute/pkg/deployment"
+	"foglute/pkg/edgeusher"
 	"foglute/pkg/kubernetes"
 	"foglute/pkg/uds"
 	"log"
@@ -9,6 +13,10 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+)
+
+const (
+	EdgeUsherPath = "/edgeusher"
 )
 
 func main() {
@@ -23,11 +31,22 @@ func main() {
 		log.Fatal(err)
 	}
 
+	var analyzer deployment.DeployAnalyzer
+	analyzer, err = edgeusher.NewEdgeUsher(EdgeUsherPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	manager, err := deployment.NewDeploymentManager(&analyzer, adapter, quit)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	var wg sync.WaitGroup
 
 	// Start services
-	go initNodeWatcher(adapter, quit, &wg)
-	go initUDSInterface(quit, &wg)
+	// go initNodeWatcher(&analyzer, adapter, quit, &wg)
+	go initUDSInterface(manager, quit, &wg)
 
 	<-stopChan
 
@@ -36,29 +55,43 @@ func main() {
 	close(quit)
 	wg.Wait()
 
-	log.Println("FogLute ends")
+	log.Println("fogluted ends")
 }
 
-func initNodeWatcher(adapter *kubernetes.KubeAdapter, quit chan struct{}, wg *sync.WaitGroup) {
-	watcher := kubernetes.StartNodeWatcher(*adapter, quit, wg)
-
-	for nodes := range watcher.Nodes() {
-		log.Print("[")
-		for _, n := range nodes {
-			log.Print(n.Name)
-		}
-		log.Print("]")
-	}
-}
-
-func initUDSInterface(quit chan struct{}, wg *sync.WaitGroup) {
+func initUDSInterface(manager *deployment.Manager, quit chan struct{}, wg *sync.WaitGroup) {
 	i := uds.Start(quit, wg)
 
+	log.Println("Waiting for applications")
+
 	for d := range i.Data() {
-		handleMessage(d)
+		log.Printf("Data Arrived!\n%s\n", d.String())
+		handleMessage(manager, d)
 	}
+
+	log.Println("Data channel closed")
 }
 
-func handleMessage(buffer *bytes.Buffer) {
-	log.Printf("Data Arrived!\n%s\n", buffer.String())
+func handleMessage(manager *deployment.Manager, buffer *bytes.Buffer) {
+	app, err := getApplicationFromBytes(buffer)
+	if err != nil {
+		log.Println("Cannot parse application from received data!")
+		return
+	}
+
+	err = manager.AddApplication(app)
+	if err != nil {
+		log.Println("Cannot add application: ", err)
+	}
+
+	log.Println("Application added successfully")
+}
+
+func getApplicationFromBytes(buffer *bytes.Buffer) (*model.Application, error) {
+	var app model.Application
+	err := json.Unmarshal(buffer.Bytes(), &app)
+	if err != nil {
+		return nil, err
+	}
+
+	return &app, nil
 }

@@ -31,5 +31,6 @@ require (
 	k8s.io/gengo v0.0.0-20190327210449-e17681d19d3a // indirect
 	k8s.io/klog v0.4.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20190722073852-5e22f3d471e6 // indirect
+	k8s.io/utils v0.0.0-20190801114015-581e00157fb1
 	sigs.k8s.io/structured-merge-diff v0.0.0-20190724202554-0c1d754dd648 // indirect
 )

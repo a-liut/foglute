@@ -3,7 +3,6 @@ package kubernetes
 import (
 	v1 "k8s.io/api/core/v1"
 	"log"
-	"sync"
 	"time"
 )
 
@@ -12,7 +11,7 @@ const (
 )
 
 type NodeWatcher struct {
-	adapter   KubeAdapter
+	adapter   *KubeAdapter
 	isRunning bool
 	isClosed  bool
 	done      chan struct{}
@@ -47,7 +46,7 @@ func (nw *NodeWatcher) Start() {
 	//
 	//nw.nodes <- nw.nodelist
 
-	informer := nw.adapter.GetNodeInformer(func(node *v1.Node) {
+	informer := (*nw.adapter).GetNodeInformer(func(node *v1.Node) {
 		nw.nodelist = append(nw.nodelist, *node)
 		nw.nodes <- nw.nodelist
 	}, func(node *v1.Node) {
@@ -104,7 +103,7 @@ func (nw *NodeWatcher) Errors() <-chan error {
 	return nw.errors
 }
 
-func NewNodeWatcher(adapter KubeAdapter) *NodeWatcher {
+func NewNodeWatcher(adapter *KubeAdapter) *NodeWatcher {
 	return &NodeWatcher{
 		adapter:   adapter,
 		isRunning: false,
@@ -122,13 +121,9 @@ func (nw *NodeWatcher) checkClosed() {
 	}
 }
 
-func StartNodeWatcher(adapter KubeAdapter, quit <-chan struct{}, wg *sync.WaitGroup) *NodeWatcher {
-	wg.Add(1)
-
+func StartNodeWatcher(adapter *KubeAdapter, quit <-chan struct{}) *NodeWatcher {
 	watcher := NewNodeWatcher(adapter)
 	go func() {
-		defer wg.Done()
-
 		go watcher.Start()
 
 		<-quit
