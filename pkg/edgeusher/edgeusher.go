@@ -35,8 +35,8 @@ func (eu *EdgeUsher) GetDeployment(mode deployment.Mode, application *model.Appl
 		euPath = eu.execPath
 	}
 
-	safeApp, _ := cleanApp(application)
-	safeInfr, _ := cleanInfr(infrastructure)
+	safeApp, appSymbolTable := cleanApp(application)
+	safeInfr, infrSymbolTable := cleanInfr(infrastructure)
 
 	appProlog := convertApplication(safeApp)
 	infrProlog := convertInfrastructure(safeInfr)
@@ -50,12 +50,27 @@ func (eu *EdgeUsher) GetDeployment(mode deployment.Mode, application *model.Appl
 
 	log.Printf("EdgeUsher raw result: %s\n", result)
 
-	deployments, err := parseResult(result)
+	placements, err := parseResult(result)
 	if err != nil {
 		return nil, err
 	}
 
-	return deployments, nil
+	cleanedPlacements := cleanPlacements(placements, appSymbolTable, infrSymbolTable)
+
+	return cleanedPlacements, nil
+}
+
+func cleanPlacements(placements []model.Placement, appSymbolTable *SymbolTable, infrSymbolTable *SymbolTable) []model.Placement {
+	cleaned := make([]model.Placement, len(placements))
+	for i, p := range placements {
+		cleaned[i].Probability = p.Probability
+		cleaned[i].Assignments = make([]model.Assignment, len(p.Assignments))
+		for j, a := range p.Assignments {
+			cleaned[i].Assignments[j].ServiceID = appSymbolTable.GetByUID(a.ServiceID)
+			cleaned[i].Assignments[j].NodeID = infrSymbolTable.GetByUID(a.NodeID)
+		}
+	}
+	return cleaned
 }
 
 func cleanApp(application *model.Application) (*model.Application, *SymbolTable) {
