@@ -7,11 +7,8 @@
       "t_proc": 2,
       "hw_reqs": 1,
       "iot_reqs": [
-        "smartvase"
       ],
       "sec_reqs": [
-        "anti_tampering",
-        "encryption"
       ]
     },
     {
@@ -20,10 +17,8 @@
       "t_proc": 2,
       "hw_reqs": 1,
       "iot_reqs": [
-        "smartvase"
       ],
       "sec_reqs": [
-        "anti_tampering"
       ]
     }
   ],

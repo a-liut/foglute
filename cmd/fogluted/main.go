@@ -10,15 +10,19 @@ import (
 	"foglute/pkg/infrastructure"
 	"foglute/pkg/uds"
 	"log"
+	"math/rand"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"sync"
 	"syscall"
+	"time"
 )
 
 func main() {
 	log.Println("Starting fogluted")
+
+	rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	var kubeconfig *string
 	if home := homeDir(); home != "" {
@@ -96,6 +100,7 @@ func handleMessage(manager *deployment.Manager, buffer *bytes.Buffer) {
 	err = manager.AddApplication(app)
 	if err != nil {
 		log.Println("Cannot add application: ", err)
+		return
 	}
 
 	log.Println("Application added successfully")

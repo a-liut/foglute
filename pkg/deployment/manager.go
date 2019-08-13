@@ -11,7 +11,7 @@ import (
 )
 
 type Manager struct {
-	usher     *DeployAnalyzer
+	analyzer  *DeployAnalyzer
 	clientset *kubernetes.Clientset
 
 	applications []*model.Application
@@ -45,7 +45,7 @@ func (manager *Manager) AddApplication(application *model.Application) error {
 		}
 	} else {
 		// Deploy the new application
-		err := manager.startApplication(application)
+		err := manager.deploy(application)
 		if err != nil {
 			return err
 		}
@@ -61,7 +61,7 @@ var instance *Manager
 func NewDeploymentManager(usher *DeployAnalyzer, clientset *kubernetes.Clientset, quit chan struct{}) (*Manager, error) {
 	if instance == nil {
 		instance = &Manager{
-			usher:        usher,
+			analyzer:     usher,
 			clientset:    clientset,
 			applications: make([]*model.Application, 0),
 
@@ -79,15 +79,9 @@ func NewDeploymentManager(usher *DeployAnalyzer, clientset *kubernetes.Clientset
 }
 
 func (manager *Manager) init() error {
-	log.Printf("Initializing Deployment manager")
-
+	log.Printf("Initializing Assignment manager")
 	// TODO: Check actual status of deployed applications
 
-	return nil
-}
-
-func (manager *Manager) startApplication(application *model.Application) error {
-	// TODO
 	return nil
 }
 
@@ -129,6 +123,45 @@ func (manager *Manager) redeployAll() []error {
 	return errs
 }
 
+func (manager *Manager) deploy(application *model.Application) error {
+	log.Printf("Call to deploy with app: %s (%s)\n", application.ID, application.Name)
+
+	currentInfrastructure, err := manager.getInfrastructure()
+	if err != nil {
+		return err
+	}
+
+	log.Printf("currentInfrastructure: %s\n", currentInfrastructure)
+
+	log.Printf("Getting a deployment for app %s (%s)\n", application.Name, application.ID)
+
+	deployments, err := (*manager.analyzer).GetDeployment(Normal, application, currentInfrastructure)
+	if err != nil {
+		return err
+	}
+
+	if len(deployments) == 0 {
+		return fmt.Errorf("no feasible deployments for app %s", application.ID)
+	}
+
+	// TODO: choose the best deployment
+	best := deployments[0]
+
+	log.Printf("Best deployment: %s\n", best)
+
+	// TODO: run kube commands to implement the deployment
+
+	log.Printf("Application %s successfully deployed\n", application.ID)
+
+	return nil
+}
+
+func (manager *Manager) undeploy(application *model.Application) error {
+	log.Printf("Call to undeploy with app: %s (%s)\n", application.ID, application.Name)
+	// TODO
+	return nil
+}
+
 func (manager *Manager) redeploy(application *model.Application) error {
 	log.Printf("Redeploying application %s...", application.Name)
 
@@ -147,6 +180,20 @@ func (manager *Manager) redeploy(application *model.Application) error {
 	return nil
 }
 
+func (manager *Manager) getInfrastructure() (*model.Infrastructure, error) {
+	nodes, err := manager.getNodes()
+	if err != nil {
+		return nil, err
+	}
+
+	i := &model.Infrastructure{
+		Nodes: nodes,
+		Links: []model.Link{},
+	}
+
+	return i, nil
+}
+
 func (manager *Manager) getNodes() ([]model.Node, error) {
 	knodes, err := manager.clientset.CoreV1().Nodes().List(metav1.ListOptions{})
 	if err != nil {
@@ -154,18 +201,6 @@ func (manager *Manager) getNodes() ([]model.Node, error) {
 	}
 
 	return convertNodes(knodes.Items), nil
-}
-
-func (manager *Manager) deploy(app *model.Application) error {
-	log.Printf("Call to deploy with app: %s (%s)\n", app.ID, app.Name)
-	// TODO
-	return nil
-}
-
-func (manager *Manager) undeploy(app *model.Application) error {
-	log.Printf("Call to undeploy with app: %s (%s)\n", app.ID, app.Name)
-	// TODO
-	return nil
 }
 
 func convertNodes(nodes []v1.Node) []model.Node {
@@ -180,16 +215,20 @@ func convertNodes(nodes []v1.Node) []model.Node {
 func convertNode(node v1.Node) model.Node {
 	// TODO: To convert a node, we need to specify how to map EU properties within a KubeNode
 	n := model.Node{
-		ID:       string(node.GetUID()),
-		Address:  node.Status.Addresses[0].Address,
-		Location: model.Location{}, // TODO
+		ID:      string(node.GetUID()),
+		Name:    node.Name,
+		Address: node.Status.Addresses[0].Address,
+		Location: model.Location{
+			Longitude: 500,
+			Latitude:  500,
+		}, // TODO
 		Profiles: make([]model.NodeProfile, 0),
 	}
 
 	np := model.NodeProfile{
 		Probability: 1,
-		HWCaps:      node.Status.Capacity.Pods().Size(),
-		IotCaps:     []string{}, // TODO,
+		HWCaps:      5000,       // TODO
+		IoTCaps:     []string{}, // TODO,
 		SecCaps:     []string{}, // TODO
 	}
 

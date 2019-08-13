@@ -1,5 +1,7 @@
 package model
 
+import "encoding/json"
+
 type Application struct {
 	ID           string                  `json:"id,omitempty"`
 	Name         string                  `json:"name"`
@@ -19,9 +21,9 @@ type Service struct {
 }
 
 type Flow struct {
-	Src       string  `json:"src"`
-	Dst       string  `json:"dst"`
-	Bandwidth float64 `json:"bandwidth"`
+	Src       string `json:"src"`
+	Dst       string `json:"dst"`
+	Bandwidth int    `json:"bandwidth"`
 }
 
 type MaxLatencyDescription struct {
@@ -30,17 +32,26 @@ type MaxLatencyDescription struct {
 }
 
 type Infrastructure struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
 	Nodes []Node `json:"nodes"`
 	Links []Link `json:"links"`
 }
 
+func (i Infrastructure) String() string {
+	b, _ := json.Marshal(i)
+	return string(b)
+}
+
 type Node struct {
 	ID       string        `json:"id"`
+	Name     string        `json:"name"`
 	Address  string        `json:"address"`
 	Location Location      `json:"location"`
 	Profiles []NodeProfile `json:"profiles"`
+}
+
+func (n Node) String() string {
+	b, _ := json.Marshal(n)
+	return string(b)
 }
 
 type Location struct {
@@ -51,18 +62,28 @@ type Location struct {
 type NodeProfile struct {
 	Probability float64  `json:"probability"`
 	HWCaps      int      `json:"hw_caps"`
-	IotCaps     []string `json:"iot_caps"`
+	IoTCaps     []string `json:"iot_caps"`
 	SecCaps     []string `json:"sec_caps"`
 }
 
 type Link struct {
-	Src       string  `json:"src"`
-	Dst       string  `json:"dst"`
-	Latency   float64 `json:"latency"`
-	Bandwidth float64 `json:"bandwidth"`
+	Src       string `json:"src"`
+	Dst       string `json:"dst"`
+	Latency   int    `json:"latency"`
+	Bandwidth int    `json:"bandwidth"`
 }
 
-type Deployment struct {
-	Service Service
-	Node    Node
+type Placement struct {
+	Probability float64
+	Assignments []Assignment
+}
+
+func (p Placement) String() string {
+	b, _ := json.Marshal(p)
+	return string(b)
+}
+
+type Assignment struct {
+	ServiceID string
+	NodeID    string
 }
