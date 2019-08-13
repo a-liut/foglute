@@ -3,41 +3,50 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"foglute/internal/model"
 	"foglute/pkg/deployment"
 	"foglute/pkg/edgeusher"
-	"foglute/pkg/kubernetes"
+	"foglute/pkg/infrastructure"
 	"foglute/pkg/uds"
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sync"
 	"syscall"
-)
-
-const (
-	EdgeUsherPath = "/edgeusher"
 )
 
 func main() {
 	log.Println("Starting fogluted")
 
+	var kubeconfig *string
+	if home := homeDir(); home != "" {
+		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	} else {
+		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+	}
+
+	edgeUsherPath := flag.String("edgeusher", "", "absolute path to EdgeUsher folder")
+
+	flag.Parse()
+
 	stopChan := make(chan os.Signal, 1)
 	quit := make(chan struct{}, 1)
 	signal.Notify(stopChan, syscall.SIGINT, syscall.SIGTERM)
 
-	adapter, err := kubernetes.Init()
+	clientset, err := infrastructure.GetClientSet(*kubeconfig)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	var analyzer deployment.DeployAnalyzer
-	analyzer, err = edgeusher.NewEdgeUsher(EdgeUsherPath)
+	analyzer, err = edgeusher.NewEdgeUsher(*edgeUsherPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	manager, err := deployment.NewDeploymentManager(&analyzer, adapter, quit)
+	manager, err := deployment.NewDeploymentManager(&analyzer, clientset, quit)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -57,6 +66,12 @@ func main() {
 
 	log.Println("fogluted ends")
 }
+func homeDir() string {
+	if h := os.Getenv("HOME"); h != "" {
+		return h
+	}
+	return os.Getenv("USERPROFILE") // windows
+}
 
 func initUDSInterface(manager *deployment.Manager, quit chan struct{}, wg *sync.WaitGroup) {
 	i := uds.Start(quit, wg)
@@ -64,7 +79,7 @@ func initUDSInterface(manager *deployment.Manager, quit chan struct{}, wg *sync.
 	log.Println("Waiting for applications")
 
 	for d := range i.Data() {
-		log.Printf("Data Arrived!\n%s\n", d.String())
+		log.Println("A new application has been submitted!")
 		handleMessage(manager, d)
 	}
 

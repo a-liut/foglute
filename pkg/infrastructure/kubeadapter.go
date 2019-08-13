@@ -1,4 +1,4 @@
-package kubernetes
+package infrastructure
 
 import (
 	"foglute/internal/model"
@@ -15,22 +15,7 @@ import (
 	"time"
 )
 
-func Init() (*KubeAdapter, error) {
-	log.Println("Checking kubernetes...")
-
-	// creates the in-cluster config
-	clientset, err := getClient("")
-	if err != nil {
-		panic(err.Error())
-	}
-
-	var adapter KubeAdapter
-	adapter = NewCmdKubeAdapter(clientset)
-
-	return &adapter, nil
-}
-
-func getClient(path string) (*kubernetes.Clientset, error) {
+func GetClientSet(path string) (*kubernetes.Clientset, error) {
 	var config *rest.Config
 	var err error
 	if path == "" {
