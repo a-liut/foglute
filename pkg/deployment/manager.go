@@ -144,6 +144,8 @@ func (manager *Manager) deploy(application *model.Application) error {
 		return fmt.Errorf("no feasible deployments for app %s", application.ID)
 	}
 
+	log.Printf("Possible deployments: %s\n", deployments)
+
 	// TODO: choose the best deployment
 	best := deployments[0]
 

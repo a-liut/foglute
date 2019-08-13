@@ -43,8 +43,6 @@ func (eu *EdgeUsher) GetDeployment(mode deployment.Mode, application *model.Appl
 
 	cmdString := "echo \"" + appProlog + "\n" + infrProlog + "\n\n:- consult('" + euPath + "').\nquery(placement(Chain, Placement, Routes)).\n" + "\" | problog"
 
-	log.Printf("CMD: %s\n", cmdString)
-
 	result, err := callProblog(cmdString)
 	if err != nil {
 		return nil, err
@@ -56,8 +54,6 @@ func (eu *EdgeUsher) GetDeployment(mode deployment.Mode, application *model.Appl
 	if err != nil {
 		return nil, err
 	}
-
-	log.Printf("Possible deployments: %s\n", deployments)
 
 	return deployments, nil
 }
@@ -225,8 +221,6 @@ func parseResult(result string) ([]model.Placement, error) {
 	placementsMatch := placementRe.FindAllStringSubmatch(result, -1)
 	list := make([]model.Placement, len(placementsMatch))
 
-	log.Println("placementsMatch", placementsMatch)
-
 	for i, placement := range placementsMatch {
 		probability, err := strconv.ParseFloat(placement[2], 64)
 		if err != nil {
@@ -237,12 +231,7 @@ func parseResult(result string) ([]model.Placement, error) {
 		list[i].Probability = probability
 		list[i].Assignments = make([]model.Assignment, len(deploymentsMatch))
 
-		log.Println(deploymentsMatch)
-		log.Println("probability", probability)
-
 		for di, depl := range deploymentsMatch {
-			log.Println("depl", depl)
-
 			list[i].Assignments[di].ServiceID = depl[1]
 			list[i].Assignments[di].NodeID = depl[2]
 		}
