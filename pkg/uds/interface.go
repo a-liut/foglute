@@ -1,3 +1,8 @@
+/*
+Fogluted
+Microservice Fog Orchestration platform.
+
+*/
 package uds
 
 import (
@@ -15,14 +20,18 @@ const (
 	DeadlineDuration = time.Duration(5) * time.Second
 )
 
+// The UDSSocketInterface object manages the input socket of the tool
 type UDSocketInterface struct {
-	quit chan struct{}
-	done chan struct{}
-
+	// Data channels
 	data   chan *bytes.Buffer
 	errors chan error
+
+	// Stop channels
+	quit chan struct{}
+	done chan struct{}
 }
 
+// Starts the socket
 func (i *UDSocketInterface) Start() {
 	log.Println("UDSocketInterface starting...")
 
@@ -54,8 +63,7 @@ func (i *UDSocketInterface) Start() {
 			if err != nil {
 				log.Fatal("Error while setting duration:", err)
 			}
-			// Accept new connections, dispatching them to fogLuteServer
-			// in a goroutine.
+			// Accept new connections, dispatching them to fogluted
 			conn, err := l.AcceptUnix()
 			if err != nil {
 				if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
@@ -84,6 +92,7 @@ func (i *UDSocketInterface) Start() {
 	}
 }
 
+// Stops the socket
 func (i *UDSocketInterface) Stop() {
 	log.Println("Calling UDSocketInterface stop")
 	close(i.quit)
@@ -94,14 +103,17 @@ func (i *UDSocketInterface) Stop() {
 	log.Println("UDSocketInterface stopped")
 }
 
+// Returns the data channel
 func (i *UDSocketInterface) Data() <-chan *bytes.Buffer {
 	return i.data
 }
 
+// Returns the error channel
 func (i *UDSocketInterface) Errors() <-chan error {
 	return i.errors
 }
 
+// Returns a new UDSocketInterface instance
 func NewUDSSocketInterface() *UDSocketInterface {
 	return &UDSocketInterface{
 		quit:   make(chan struct{}, 1),
@@ -109,22 +121,4 @@ func NewUDSSocketInterface() *UDSocketInterface {
 		data:   make(chan *bytes.Buffer, 1),
 		errors: make(chan error, 1),
 	}
-}
-
-func Start(quit <-chan struct{}, wg *sync.WaitGroup) *UDSocketInterface {
-	wg.Add(1)
-
-	i := NewUDSSocketInterface()
-	go func() {
-		defer wg.Done()
-		go i.Start()
-
-		<-quit
-
-		log.Printf("Stopping uds ")
-
-		i.Stop()
-	}()
-
-	return i
 }

@@ -1,3 +1,8 @@
+/*
+Fogluted
+Microservice Fog Orchestration platform.
+
+*/
 package model
 
 import "encoding/json"

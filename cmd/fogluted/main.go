@@ -1,3 +1,8 @@
+/*
+Fogluted
+Microservice Fog Orchestration platform.
+
+*/
 package main
 
 import (
@@ -58,7 +63,6 @@ func main() {
 	var wg sync.WaitGroup
 
 	// Start services
-	// go initNodeWatcher(&analyzer, adapter, quit, &wg)
 	go initUDSInterface(manager, quit, &wg)
 
 	<-stopChan
@@ -70,6 +74,8 @@ func main() {
 
 	log.Println("fogluted ends")
 }
+
+// Returns the home directory
 func homeDir() string {
 	if h := os.Getenv("HOME"); h != "" {
 		return h
@@ -77,8 +83,21 @@ func homeDir() string {
 	return os.Getenv("USERPROFILE") // windows
 }
 
+// Starts the Unix socket. The socket is used as input for new applications to deploy
 func initUDSInterface(manager *deployment.Manager, quit chan struct{}, wg *sync.WaitGroup) {
-	i := uds.Start(quit, wg)
+	wg.Add(1)
+
+	i := uds.NewUDSSocketInterface()
+	go func() {
+		defer wg.Done()
+		go i.Start()
+
+		<-quit
+
+		log.Printf("Stopping uds ")
+
+		i.Stop()
+	}()
 
 	log.Println("Waiting for applications")
 
@@ -90,6 +109,7 @@ func initUDSInterface(manager *deployment.Manager, quit chan struct{}, wg *sync.
 	log.Println("Data channel closed")
 }
 
+// Handles a new message arrived through the Unix socket
 func handleMessage(manager *deployment.Manager, buffer *bytes.Buffer) {
 	app, err := getApplicationFromBytes(buffer)
 	if err != nil {
@@ -106,6 +126,7 @@ func handleMessage(manager *deployment.Manager, buffer *bytes.Buffer) {
 	log.Println("Application added successfully")
 }
 
+// Convert a byte buffer into an Application
 func getApplicationFromBytes(buffer *bytes.Buffer) (*model.Application, error) {
 	var app model.Application
 	err := json.Unmarshal(buffer.Bytes(), &app)

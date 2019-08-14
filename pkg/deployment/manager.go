@@ -1,3 +1,8 @@
+/*
+Fogluted
+Microservice Fog Orchestration platform.
+
+*/
 package deployment
 
 import (
@@ -10,16 +15,23 @@ import (
 	"sync"
 )
 
+// The Manager is responsible to deploy applications.
 type Manager struct {
-	analyzer  *DeployAnalyzer
+	// Analyzer to produce placements for applications
+	analyzer *DeployAnalyzer
+
+	// Kubernetes Clientset
 	clientset *kubernetes.Clientset
 
+	// Deployed applications
 	applications []*model.Application
 
+	// Stop channels
 	quit chan struct{}
 	done chan struct{}
 }
 
+// Returns true if the provided application is currently deployed by the manager
 func (manager *Manager) HasApplication(application *model.Application) bool {
 	for _, app := range manager.applications {
 		if application.ID == app.ID {
@@ -29,6 +41,9 @@ func (manager *Manager) HasApplication(application *model.Application) bool {
 	return false
 }
 
+// Adds an application to the manager.
+// If the application is already deployed, the application is redeployed, otherwise
+// it is deployed and added to the manager
 func (manager *Manager) AddApplication(application *model.Application) error {
 	if manager.HasApplication(application) {
 		err := manager.redeploy(application)
@@ -56,8 +71,10 @@ func (manager *Manager) AddApplication(application *model.Application) error {
 	return nil
 }
 
+// Singleton pattern
 var instance *Manager
 
+// Get an instance of Manager
 func NewDeploymentManager(usher *DeployAnalyzer, clientset *kubernetes.Clientset, quit chan struct{}) (*Manager, error) {
 	if instance == nil {
 		instance = &Manager{
@@ -78,6 +95,8 @@ func NewDeploymentManager(usher *DeployAnalyzer, clientset *kubernetes.Clientset
 	return instance, nil
 }
 
+// Initialize the Manager.
+// It reads the current state of the Kubernetes cluster to get the actually deployed applications.
 func (manager *Manager) init() error {
 	log.Printf("Initializing Assignment manager")
 	// TODO: Check actual status of deployed applications
@@ -85,6 +104,7 @@ func (manager *Manager) init() error {
 	return nil
 }
 
+// Perform the redeploy of all applications managed by the Manager
 func (manager *Manager) redeployAll() []error {
 	log.Printf("Redeploying applications (%d) for new node configuration", len(manager.applications))
 
@@ -107,6 +127,7 @@ func (manager *Manager) redeployAll() []error {
 		}()
 	}
 
+	// Wait for goroutines to end
 	go func() {
 		log.Printf("waiting for redeployment finishes...")
 		wg.Wait()
@@ -114,6 +135,7 @@ func (manager *Manager) redeployAll() []error {
 		close(errors)
 	}()
 
+	// Collect errors
 	for err := range errors {
 		errs = append(errs, fmt.Errorf("an application cannot be redeployed: %s", err))
 	}
@@ -123,6 +145,8 @@ func (manager *Manager) redeployAll() []error {
 	return errs
 }
 
+// Performs the deploy of an application
+// It gets the current state of the Kubernetes cluster and produce a feasible placement for the application
 func (manager *Manager) deploy(application *model.Application) error {
 	log.Printf("Call to deploy with app: %s (%s)\n", application.ID, application.Name)
 
@@ -158,12 +182,15 @@ func (manager *Manager) deploy(application *model.Application) error {
 	return nil
 }
 
+// Deletes an application from the Kubernetes cluster
 func (manager *Manager) undeploy(application *model.Application) error {
 	log.Printf("Call to undeploy with app: %s (%s)\n", application.ID, application.Name)
 	// TODO
 	return nil
 }
 
+// Performs the redeploy of an application
+// It first undeploy the application and then deploy it again.
 func (manager *Manager) redeploy(application *model.Application) error {
 	log.Printf("Redeploying application %s...", application.Name)
 
@@ -182,6 +209,7 @@ func (manager *Manager) redeploy(application *model.Application) error {
 	return nil
 }
 
+// Returns the infrastructure based on Kubernetes cluster nodes
 func (manager *Manager) getInfrastructure() (*model.Infrastructure, error) {
 	nodes, err := manager.getNodes()
 	if err != nil {
@@ -196,6 +224,7 @@ func (manager *Manager) getInfrastructure() (*model.Infrastructure, error) {
 	return i, nil
 }
 
+// Get active Kubernetes cluster nodes
 func (manager *Manager) getNodes() ([]model.Node, error) {
 	knodes, err := manager.clientset.CoreV1().Nodes().List(metav1.ListOptions{})
 	if err != nil {
@@ -205,6 +234,7 @@ func (manager *Manager) getNodes() ([]model.Node, error) {
 	return convertNodes(knodes.Items), nil
 }
 
+// Converts a list of Kubernetes nodes to a list of Manager nodes
 func convertNodes(nodes []v1.Node) []model.Node {
 	ret := make([]model.Node, len(nodes))
 	for i, n := range nodes {
@@ -214,6 +244,7 @@ func convertNodes(nodes []v1.Node) []model.Node {
 	return ret
 }
 
+// Converts a Kubernetes node to a Manager node
 func convertNode(node v1.Node) model.Node {
 	// TODO: To convert a node, we need to specify how to map EU properties within a KubeNode
 	n := model.Node{

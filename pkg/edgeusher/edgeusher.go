@@ -1,3 +1,8 @@
+/*
+Fogluted
+Microservice Fog Orchestration platform.
+
+*/
 package edgeusher
 
 import (
@@ -18,11 +23,14 @@ const (
 	HedgeUsherExec = "hedgeusher.pl"
 )
 
+// EdgeUsher is an object that wraps the EdgeUsher software to produce placements of an application over an infrastructure.
 type EdgeUsher struct {
 	execPath  string
 	hExecPath string
 }
 
+// A DeployerAnalyzer takes an application and an infrastructure and produce a set of placements for them.
+// Each Service of the application is assigned to a specific node of the infrastructure.
 func (eu *EdgeUsher) GetDeployment(mode deployment.Mode, application *model.Application, infrastructure *model.Infrastructure) ([]model.Placement, error) {
 	var euPath string
 	switch mode {
@@ -35,13 +43,15 @@ func (eu *EdgeUsher) GetDeployment(mode deployment.Mode, application *model.Appl
 		euPath = eu.execPath
 	}
 
+	// Cleanup strings within the objects
 	safeApp, appSymbolTable := cleanApp(application)
 	safeInfr, infrSymbolTable := cleanInfr(infrastructure)
 
-	appProlog := convertApplication(safeApp)
-	infrProlog := convertInfrastructure(safeInfr)
+	// Get Problog code
+	appProlog := getPlCodeFromApplication(safeApp)
+	infrProlog := getPlCodeFromInfrastructure(safeInfr)
 
-	cmdString := "echo \"" + appProlog + "\n" + infrProlog + "\n\n:- consult('" + euPath + "').\nquery(placement(Chain, Placement, Routes)).\n" + "\" | problog"
+	cmdString := "echo \"" + appProlog + "\n" + infrProlog + "\n\n:- consult('" + euPath + "').\nquery(placement(Chain, Placement, Routes)).\n" + "\""
 
 	result, err := callProblog(cmdString)
 	if err != nil {
@@ -60,6 +70,7 @@ func (eu *EdgeUsher) GetDeployment(mode deployment.Mode, application *model.Appl
 	return cleanedPlacements, nil
 }
 
+// Converts all strings in placements to get real names for services and nodes using symbol tables.
 func cleanPlacements(placements []model.Placement, appSymbolTable *SymbolTable, infrSymbolTable *SymbolTable) []model.Placement {
 	cleaned := make([]model.Placement, len(placements))
 	for i, p := range placements {
@@ -73,6 +84,9 @@ func cleanPlacements(placements []model.Placement, appSymbolTable *SymbolTable, 
 	return cleaned
 }
 
+// Removes from an application strings that can make EdgeUsher fail.
+// It produces a new application with updated strings and a symbol table that contains all the performed
+// mappings of the names.
 func cleanApp(application *model.Application) (*model.Application, *SymbolTable) {
 	table := NewSymbolTable()
 
@@ -126,6 +140,9 @@ func cleanApp(application *model.Application) (*model.Application, *SymbolTable)
 	return cleaned, table
 }
 
+// Removes from an infrastructure strings that can make EdgeUsher fail.
+// It produces a new infrastructure with updated strings and a symbol table that contains all the performed
+// mappings of the names.
 func cleanInfr(infrastructure *model.Infrastructure) (*model.Infrastructure, *SymbolTable) {
 	table := NewSymbolTable()
 
@@ -173,7 +190,8 @@ func cleanInfr(infrastructure *model.Infrastructure) (*model.Infrastructure, *Sy
 	return cleaned, table
 }
 
-func convertApplication(application *model.Application) string {
+// Returns Problog code from an application
+func getPlCodeFromApplication(application *model.Application) string {
 	names := make([]string, len(application.Services))
 	servicesDescr := make([]string, len(application.Services))
 	flowsDescr := make([]string, len(application.Flows))
@@ -202,7 +220,8 @@ func convertApplication(application *model.Application) string {
 	)
 }
 
-func convertInfrastructure(infrastructure *model.Infrastructure) string {
+// Returns Problog code from an infrastructure
+func getPlCodeFromInfrastructure(infrastructure *model.Infrastructure) string {
 	nodesCode := make([]string, 0)
 	linksCode := make([]string, len(infrastructure.Links))
 
@@ -219,8 +238,10 @@ func convertInfrastructure(infrastructure *model.Infrastructure) string {
 	return fmt.Sprintf("%%%% Infrastructure: %s\n%s\n%s", "kube_infrastructure", strings.Join(nodesCode[:], "\n"), strings.Join(linksCode[:], "\n"))
 }
 
+// Calls Problog using the command string passed
+// It returns the output of the process
 func callProblog(cmdString string) (string, error) {
-	cmd := exec.Command("bash", "-c", cmdString)
+	cmd := exec.Command("bash", "-c", cmdString+" | problog")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", err
@@ -229,10 +250,12 @@ func callProblog(cmdString string) (string, error) {
 	return string(out), nil
 }
 
+// Parse Problog result
 func parseResult(result string) ([]model.Placement, error) {
 	placementRe, _ := regexp.Compile(`placement\((?P<deployments>.*)\):\s*(?P<probability>[-+]?[0-9]*\.?[0-9]+)`)
 	deploymentRe, _ := regexp.Compile(`on\((?P<service>\w*),(?P<node>\w*)\)`)
 
+	// Get first all placements
 	placementsMatch := placementRe.FindAllStringSubmatch(result, -1)
 	list := make([]model.Placement, len(placementsMatch))
 
@@ -242,6 +265,7 @@ func parseResult(result string) ([]model.Placement, error) {
 			return nil, fmt.Errorf("invalid probability: %s", placementsMatch[2])
 		}
 
+		// Get all service-node mappings
 		deploymentsMatch := deploymentRe.FindAllStringSubmatch(placement[1], -1)
 		list[i].Probability = probability
 		list[i].Assignments = make([]model.Assignment, len(deploymentsMatch))
@@ -255,23 +279,26 @@ func parseResult(result string) ([]model.Placement, error) {
 	return list, nil
 }
 
+// Returns true if Problog is available
 func checkProblog() bool {
 	_, err := exec.LookPath("problog")
 	return err == nil
 }
 
-func checkPath(p string) bool {
+// Returns true if EdgeUsher is available
+func checkEdgeUsher(p string) bool {
 	_, errEu := os.Stat(path.Join(p, EdgeUsherExec))
 	_, errHeu := os.Stat(path.Join(p, HedgeUsherExec))
 	return errEu == nil && errHeu == nil
 }
 
+// Returns a new instance of EdgeUsher analyzer
 func NewEdgeUsher(p string) (*EdgeUsher, error) {
 	if !checkProblog() {
 		return nil, fmt.Errorf("cannot find problog")
 	}
 
-	if !checkPath(p) {
+	if !checkEdgeUsher(p) {
 		return nil, fmt.Errorf("cannot find EdgeUsher in %s", p)
 	}
 
