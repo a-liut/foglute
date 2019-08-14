@@ -350,9 +350,24 @@ func (manager *Manager) getInfrastructure() (*model.Infrastructure, error) {
 		return nil, err
 	}
 
+	linksCount := (len(nodes) * (len(nodes) - 1)) / 2
 	i := &model.Infrastructure{
 		Nodes: nodes,
-		Links: []model.Link{},
+		Links: make([]model.Link, linksCount),
+	}
+
+	// Link the nodes
+	// TODO: implement proper link creation strategy
+	j := 0
+	for idx, src := range nodes {
+		for _, dst := range nodes[idx+1:] {
+			i.Links[j].Bandwidth = 99999 // TODO
+			i.Links[j].Latency = 99999   // TODO
+			i.Links[j].Src = src.ID
+			i.Links[j].Dst = dst.ID
+
+			j++
+		}
 	}
 
 	return i, nil
