@@ -3,7 +3,7 @@
   "services": [
     {
       "name": "s1",
-      "image": "hello-world",
+      "image": "nginx:1.12",
       "t_proc": 2,
       "hw_reqs": 1,
       "iot_reqs": [
@@ -13,7 +13,7 @@
     },
     {
       "name": "s2",
-      "image": "hello-world",
+      "image": "nginx:1.12",
       "t_proc": 2,
       "hw_reqs": 1,
       "iot_reqs": [

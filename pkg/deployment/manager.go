@@ -8,9 +8,11 @@ package deployment
 import (
 	"fmt"
 	"foglute/internal/model"
-	v1 "k8s.io/api/core/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/pointer"
 	"log"
 	"sync"
 )
@@ -159,27 +161,108 @@ func (manager *Manager) deploy(application *model.Application) error {
 
 	log.Printf("Getting a deployment for app %s (%s)\n", application.Name, application.ID)
 
-	deployments, err := (*manager.analyzer).GetDeployment(Normal, application, currentInfrastructure)
+	placements, err := (*manager.analyzer).GetDeployment(Normal, application, currentInfrastructure)
 	if err != nil {
 		return err
 	}
 
-	if len(deployments) == 0 {
-		return fmt.Errorf("no feasible deployments for app %s", application.ID)
+	log.Printf("Possible placements: %s\n", placements)
+
+	best, err := pickBestPlacement(placements)
+	if err != nil {
+		return fmt.Errorf("cannot devise a placement for app %s: %s", application.ID, err)
 	}
-
-	log.Printf("Possible deployments: %s\n", deployments)
-
-	// TODO: choose the best deployment
-	best := deployments[0]
 
 	log.Printf("Best deployment: %s\n", best)
 
-	// TODO: run kube commands to implement the deployment
+	err = manager.performPlacement(application, best)
+	if err != nil {
+		return err
+	}
 
 	log.Printf("Application %s successfully deployed\n", application.ID)
 
 	return nil
+}
+
+func pickBestPlacement(placements []model.Placement) (*model.Placement, error) {
+	if len(placements) == 0 {
+		return nil, fmt.Errorf("no feasible deployments")
+	}
+	// TODO: choose the best deployment
+	return &placements[0], nil
+}
+
+func (manager *Manager) performPlacement(application *model.Application, placement *model.Placement) error {
+	log.Println("Performing placement")
+	for _, assignment := range placement.Assignments {
+		deployment, err := manager.createDeploymentFromAssignment(application, &assignment)
+		if err != nil {
+			// TODO: implement a rollback procedure!
+			return err
+		}
+
+		deploymentsClient := manager.clientset.AppsV1().Deployments(apiv1.NamespaceDefault)
+
+		result, err := deploymentsClient.Create(deployment)
+		if err != nil {
+			// TODO: implement a rollback procedure!
+			return err
+		}
+
+		log.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
+	}
+
+	return nil
+}
+
+func (manager *Manager) createDeploymentFromAssignment(application *model.Application, assignment *model.Assignment) (*appsv1.Deployment, error) {
+	var service *model.Service
+	for _, s := range application.Services {
+		if s.Name == assignment.ServiceName {
+			service = &s
+			break
+		}
+	}
+	if service == nil {
+		return nil, fmt.Errorf("service %s not found in application %s", assignment.ServiceName, application.ID)
+	}
+
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: assignment.ServiceName,
+			Labels: map[string]string{
+				"app":      application.Name,       // TODO: Use a unique ID
+				"service":  assignment.ServiceName, // TODO: Use a unique ID
+				"fogluted": "fogluted",
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: pointer.Int32Ptr(1),
+			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{
+				"app":      application.Name, // TODO: Use a unique ID
+				"service":  assignment.ServiceName,
+				"fogluted": "fogluted",
+			}},
+			Template: apiv1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app":      application.Name,       // TODO: Use a unique ID
+						"service":  assignment.ServiceName, // TODO: Use a unique ID
+						"fogluted": "fogluted",
+					},
+				},
+				Spec: apiv1.PodSpec{Containers: []apiv1.Container{
+					{
+						Name:  service.Name,
+						Image: service.Image,
+						// TODO: Add other stuff
+					},
+				}}},
+		},
+	}
+
+	return deployment, nil
 }
 
 // Deletes an application from the Kubernetes cluster
@@ -235,7 +318,7 @@ func (manager *Manager) getNodes() ([]model.Node, error) {
 }
 
 // Converts a list of Kubernetes nodes to a list of Manager nodes
-func convertNodes(nodes []v1.Node) []model.Node {
+func convertNodes(nodes []apiv1.Node) []model.Node {
 	ret := make([]model.Node, len(nodes))
 	for i, n := range nodes {
 		ret[i] = convertNode(n)
@@ -245,7 +328,7 @@ func convertNodes(nodes []v1.Node) []model.Node {
 }
 
 // Converts a Kubernetes node to a Manager node
-func convertNode(node v1.Node) model.Node {
+func convertNode(node apiv1.Node) model.Node {
 	// TODO: To convert a node, we need to specify how to map EU properties within a KubeNode
 	n := model.Node{
 		ID:      string(node.GetUID()),

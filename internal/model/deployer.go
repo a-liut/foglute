@@ -89,6 +89,6 @@ func (p Placement) String() string {
 }
 
 type Assignment struct {
-	ServiceID string
-	NodeID    string
+	ServiceName string
+	NodeID      string
 }
