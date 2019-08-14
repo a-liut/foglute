@@ -83,7 +83,7 @@ func homeDir() string {
 	return os.Getenv("USERPROFILE") // windows
 }
 
-// Starts the Unix socket. The socket is used as input for new applications to deploy
+// Starts the Unix socket. The socket is used as input for new commands to perform
 func initUDSInterface(manager *deployment.Manager, quit chan struct{}, wg *sync.WaitGroup) {
 	wg.Add(1)
 
@@ -102,37 +102,74 @@ func initUDSInterface(manager *deployment.Manager, quit chan struct{}, wg *sync.
 	log.Println("Waiting for applications")
 
 	for d := range i.Data() {
-		log.Println("A new application has been submitted!")
+		log.Println("A new command has been submitted!")
 		handleMessage(manager, d)
 	}
 
 	log.Println("Data channel closed")
 }
 
-// Handles a new message arrived through the Unix socket
-func handleMessage(manager *deployment.Manager, buffer *bytes.Buffer) {
-	app, err := getApplicationFromBytes(buffer)
-	if err != nil {
-		log.Println("Cannot parse application from received data!")
-		return
-	}
+const (
+	OperationAdd    = "add"
+	OperationDelete = "delete"
+)
 
-	err = manager.AddApplication(app)
-	if err != nil {
-		log.Println("Cannot add application: ", err)
-		return
-	}
-
-	log.Println("Application added successfully")
+type Operation struct {
+	Op          string          `json:"op"`
+	Application json.RawMessage `json:"application"`
 }
 
-// Convert a byte buffer into an Application
-func getApplicationFromBytes(buffer *bytes.Buffer) (*model.Application, error) {
-	var app model.Application
-	err := json.Unmarshal(buffer.Bytes(), &app)
+// Handles a new message arrived through the Unix socket
+func handleMessage(manager *deployment.Manager, buffer *bytes.Buffer) {
+	// Parse operation
+	var op Operation
+	err := json.Unmarshal(buffer.Bytes(), &op)
 	if err != nil {
-		return nil, err
+		log.Println("Cannot parse operation from received data!")
+		return
 	}
 
-	return &app, nil
+	switch op.Op {
+	case OperationAdd:
+		log.Println("Add operation")
+		var app model.Application
+		err := json.Unmarshal(op.Application, &app)
+		if err != nil {
+			log.Println("Cannot parse application from received data!")
+			return
+		}
+
+		err = manager.AddApplication(&app)
+		if err != nil {
+			log.Println("Cannot add application: ", err)
+			return
+		}
+
+		log.Println("Application added successfully")
+	case OperationDelete:
+		log.Println("Delete operation")
+
+		var id string
+		err := json.Unmarshal(op.Application, &id)
+		if err != nil {
+			log.Println("Cannot parse application id from received data!")
+			return
+		}
+
+		app, exists := manager.GetApplicationById(id)
+		if !exists {
+			log.Printf("Application %s not found", id)
+			return
+		}
+
+		err = manager.DeleteApplication(&app)
+		if err != nil {
+			log.Println("Cannot delete application: ", err)
+			return
+		}
+
+		log.Println("Application deleted successfully")
+	default:
+		log.Println("Operation not recognised")
+	}
 }

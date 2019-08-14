@@ -1,7 +1,9 @@
 {
+  "id": "test-app-1",
   "name": "TestApp1",
   "services": [
     {
+      "id": "s1",
       "name": "s1",
       "image": "hello-world",
       "t_proc": 2,
@@ -15,6 +17,7 @@
       ]
     },
     {
+      "id": "s2",
       "name": "s2",
       "image": "hello-world",
       "t_proc": 2,

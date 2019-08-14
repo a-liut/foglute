@@ -33,6 +33,17 @@ type Manager struct {
 	done chan struct{}
 }
 
+// Returns the application with the specified id handled by the manager.
+func (manager *Manager) GetApplicationById(id string) (model.Application, bool) {
+	for _, app := range manager.applications {
+		if app.ID == id {
+			return *app, true
+		}
+	}
+
+	return model.Application{}, false
+}
+
 // Returns true if the provided application is currently deployed by the manager
 func (manager *Manager) HasApplication(application *model.Application) bool {
 	for _, app := range manager.applications {
@@ -67,10 +78,23 @@ func (manager *Manager) AddApplication(application *model.Application) error {
 			return err
 		}
 
+		log.Printf("Adding %s to manager's applications", application.ID)
 		manager.applications = append(manager.applications, application)
 	}
 
 	return nil
+}
+
+// Deletes an application from the manager.
+// If the application is deployed, then it undeploy the application from the cluster
+func (manager *Manager) DeleteApplication(application *model.Application) error {
+	if !manager.HasApplication(application) {
+		return fmt.Errorf("cannot find application %s", application.Name)
+	}
+
+	err := manager.undeploy(application)
+
+	return err
 }
 
 // Singleton pattern
@@ -219,21 +243,21 @@ func (manager *Manager) performPlacement(application *model.Application, placeme
 func (manager *Manager) createDeploymentFromAssignment(application *model.Application, assignment *model.Assignment) (*appsv1.Deployment, error) {
 	var service *model.Service
 	for _, s := range application.Services {
-		if s.Name == assignment.ServiceName {
+		if s.Id == assignment.ServiceID {
 			service = &s
 			break
 		}
 	}
 	if service == nil {
-		return nil, fmt.Errorf("service %s not found in application %s", assignment.ServiceName, application.ID)
+		return nil, fmt.Errorf("service %s not found in application %s", assignment.ServiceID, application.ID)
 	}
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: assignment.ServiceName,
+			Name: assignment.ServiceID,
 			Labels: map[string]string{
-				"app":      application.Name,       // TODO: Use a unique ID
-				"service":  assignment.ServiceName, // TODO: Use a unique ID
+				"app":      application.Name, // TODO: Use a unique ID
+				"service":  assignment.ServiceID,
 				"fogluted": "fogluted",
 			},
 		},
@@ -241,14 +265,14 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 			Replicas: pointer.Int32Ptr(1),
 			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{
 				"app":      application.Name, // TODO: Use a unique ID
-				"service":  assignment.ServiceName,
+				"service":  assignment.ServiceID,
 				"fogluted": "fogluted",
 			}},
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app":      application.Name,       // TODO: Use a unique ID
-						"service":  assignment.ServiceName, // TODO: Use a unique ID
+						"app":      application.Name, // TODO: Use a unique ID
+						"service":  assignment.ServiceID,
 						"fogluted": "fogluted",
 					},
 				},
@@ -268,7 +292,23 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 // Deletes an application from the Kubernetes cluster
 func (manager *Manager) undeploy(application *model.Application) error {
 	log.Printf("Call to undeploy with app: %s (%s)\n", application.ID, application.Name)
-	// TODO
+
+	deploymentsClient := manager.clientset.AppsV1().Deployments(apiv1.NamespaceDefault)
+
+	for _, s := range application.Services {
+		log.Printf("Undeploying service %s", s.Name)
+
+		deletePolicy := metav1.DeletePropagationForeground
+		if err := deploymentsClient.Delete(s.Id, &metav1.DeleteOptions{
+			PropagationPolicy: &deletePolicy,
+		}); err != nil {
+			// TODO: implement a rollback procedure!
+			return err
+		}
+
+		log.Printf("Deleted deployment %q.\n", s.Id)
+	}
+
 	return nil
 }
 

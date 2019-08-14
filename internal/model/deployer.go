@@ -8,7 +8,7 @@ package model
 import "encoding/json"
 
 type Application struct {
-	ID           string                  `json:"id,omitempty"`
+	ID           string                  `json:"id"`
 	Name         string                  `json:"name"`
 	Services     []Service               `json:"services"`
 	Flows        []Flow                  `json:"flows"`
@@ -89,6 +89,6 @@ func (p Placement) String() string {
 }
 
 type Assignment struct {
-	ServiceName string
-	NodeID      string
+	ServiceID string
+	NodeID    string
 }

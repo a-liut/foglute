@@ -77,7 +77,7 @@ func cleanPlacements(placements []model.Placement, appSymbolTable *SymbolTable, 
 		cleaned[i].Probability = p.Probability
 		cleaned[i].Assignments = make([]model.Assignment, len(p.Assignments))
 		for j, a := range p.Assignments {
-			cleaned[i].Assignments[j].ServiceName = appSymbolTable.GetByUID(a.ServiceName)
+			cleaned[i].Assignments[j].ServiceID = appSymbolTable.GetByUID(a.ServiceID)
 			cleaned[i].Assignments[j].NodeID = infrSymbolTable.GetByUID(a.NodeID)
 		}
 	}
@@ -271,7 +271,7 @@ func parseResult(result string) ([]model.Placement, error) {
 		list[i].Assignments = make([]model.Assignment, len(deploymentsMatch))
 
 		for di, depl := range deploymentsMatch {
-			list[i].Assignments[di].ServiceName = depl[1]
+			list[i].Assignments[di].ServiceID = depl[1]
 			list[i].Assignments[di].NodeID = depl[2]
 		}
 	}
