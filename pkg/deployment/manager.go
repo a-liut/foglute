@@ -14,6 +14,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/pointer"
 	"log"
+	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -395,26 +397,35 @@ func convertNodes(nodes []apiv1.Node) []model.Node {
 
 // Converts a Kubernetes node to a Manager node
 func convertNode(node apiv1.Node) model.Node {
-	// TODO: To convert a node, we need to specify how to map EU properties within a KubeNode
 	n := model.Node{
 		ID:      string(node.GetUID()),
 		Name:    node.Name,
 		Address: node.Status.Addresses[0].Address,
 		Location: model.Location{
-			Longitude: 500,
-			Latitude:  500,
-		}, // TODO
-		Profiles: make([]model.NodeProfile, 0),
+			Longitude: model.NodeDefaultLongitude,
+			Latitude:  model.NodeDefaultLatitude,
+		},
+		Profiles: make([]model.NodeProfile, 1),
 	}
 
-	np := model.NodeProfile{
-		Probability: 1,
-		HWCaps:      5000,       // TODO
-		IoTCaps:     []string{}, // TODO,
-		SecCaps:     []string{}, // TODO
+	if long, err := strconv.ParseInt(node.Labels["longitude"], 10, 32); err == nil {
+		n.Location.Longitude = int(long)
 	}
 
-	n.Profiles = append(n.Profiles, np)
+	if lat, err := strconv.ParseInt(node.Labels["latitude"], 10, 32); err == nil {
+		n.Location.Latitude = int(lat)
+	}
+
+	n.Profiles[0].Probability = 1
+	n.Profiles[0].IoTCaps = strings.Split(node.Labels["iot_caps"], ",")
+	n.Profiles[0].SecCaps = strings.Split(node.Labels["sec_caps"], ",")
+
+	if hwcaps, err := strconv.ParseInt(node.Labels["hw_caps"], 10, 32); err == nil {
+		n.Profiles[0].HWCaps = int(hwcaps)
+	} else {
+		// Default value
+		n.Profiles[0].HWCaps = model.NodeDefaultHwCaps
+	}
 
 	return n
 }

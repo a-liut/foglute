@@ -7,6 +7,7 @@ package model
 
 import "encoding/json"
 
+// An Application is a set of services and relations between them.
 type Application struct {
 	ID           string                  `json:"id"`
 	Name         string                  `json:"name"`
@@ -15,6 +16,7 @@ type Application struct {
 	MaxLatencies []MaxLatencyDescription `json:"max_latency"`
 }
 
+// A Service is a part of an application that can be executed.
 type Service struct {
 	Id      string   `json:"id"`
 	Name    string   `json:"name"`
@@ -25,17 +27,20 @@ type Service struct {
 	Image   string   `json:"image"`
 }
 
+// A Flow is a requirement that a connection between two services must satisfy
 type Flow struct {
 	Src       string `json:"src"`
 	Dst       string `json:"dst"`
 	Bandwidth int    `json:"bandwidth"`
 }
 
+// A MaxLatencyDescription describe the maximum latency that a chain of services should have
 type MaxLatencyDescription struct {
 	Chain []string `json:"chain"`
 	Value int      `json:"value"`
 }
 
+// An Infrastructure is a collection of nodes and links between them.
 type Infrastructure struct {
 	Nodes []Node `json:"nodes"`
 	Links []Link `json:"links"`
@@ -46,6 +51,13 @@ func (i Infrastructure) String() string {
 	return string(b)
 }
 
+const (
+	NodeDefaultHwCaps    = 9999
+	NodeDefaultLongitude = 0
+	NodeDefaultLatitude  = 0
+)
+
+// A Node represent a device that can run a service.
 type Node struct {
 	ID       string        `json:"id"`
 	Name     string        `json:"name"`
@@ -59,11 +71,13 @@ func (n Node) String() string {
 	return string(b)
 }
 
+// A Location represent a geolocated place in the world
 type Location struct {
-	Longitude int32 `json:"longitude"`
-	Latitude  int32 `json:"latitude"`
+	Longitude int `json:"longitude"`
+	Latitude  int `json:"latitude"`
 }
 
+// A NodeProfile describes the capabilities of a node taking in consideration the probability of that configuration
 type NodeProfile struct {
 	Probability float64  `json:"probability"`
 	HWCaps      int      `json:"hw_caps"`
@@ -71,6 +85,7 @@ type NodeProfile struct {
 	SecCaps     []string `json:"sec_caps"`
 }
 
+// A Link is a connection between two nodes
 type Link struct {
 	Src       string `json:"src"`
 	Dst       string `json:"dst"`
@@ -78,6 +93,7 @@ type Link struct {
 	Bandwidth int    `json:"bandwidth"`
 }
 
+// A Placement is a set of Node-Service assignments produced by a deploy analyzer
 type Placement struct {
 	Probability float64
 	Assignments []Assignment
@@ -88,6 +104,7 @@ func (p Placement) String() string {
 	return string(b)
 }
 
+// An Assignment is a pair Node-Service produced by a deploy analyzer
 type Assignment struct {
 	ServiceID string
 	NodeID    string
