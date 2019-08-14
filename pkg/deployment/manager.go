@@ -93,8 +93,18 @@ func (manager *Manager) DeleteApplication(application *model.Application) error 
 	}
 
 	err := manager.undeploy(application)
+	if err != nil {
+		return err
+	}
 
-	return err
+	// Remove app from the applications list
+	for i, app := range manager.applications {
+		if app.ID == application.ID {
+			manager.applications = append(manager.applications[:i], manager.applications[i+1:]...)
+		}
+	}
+
+	return nil
 }
 
 // Singleton pattern
@@ -248,13 +258,14 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 			break
 		}
 	}
+
 	if service == nil {
 		return nil, fmt.Errorf("service %s not found in application %s", assignment.ServiceID, application.ID)
 	}
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: assignment.ServiceID,
+			Name: fmt.Sprintf("%s-%s", application.ID, assignment.ServiceID),
 			Labels: map[string]string{
 				"app":      application.Name, // TODO: Use a unique ID
 				"service":  assignment.ServiceID,
@@ -299,7 +310,7 @@ func (manager *Manager) undeploy(application *model.Application) error {
 		log.Printf("Undeploying service %s", s.Name)
 
 		deletePolicy := metav1.DeletePropagationForeground
-		if err := deploymentsClient.Delete(s.Id, &metav1.DeleteOptions{
+		if err := deploymentsClient.Delete(fmt.Sprintf("%s-%s", application.ID, s.Id), &metav1.DeleteOptions{
 			PropagationPolicy: &deletePolicy,
 		}); err != nil {
 			// TODO: implement a rollback procedure!
