@@ -102,7 +102,6 @@ func cleanApp(application *model.Application) (*model.Application, *SymbolTable)
 		c := &cleaned.Services[is]
 
 		c.Id = table.Add(s.Id)
-		c.Name = table.Add(s.Name)
 		c.TProc = s.TProc
 		c.HWReqs = s.HWReqs
 		c.IoTReqs = make([]string, len(s.IoTReqs))
@@ -198,8 +197,8 @@ func getPlCodeFromApplication(application *model.Application) string {
 	maxLatenciesDescr := make([]string, len(application.MaxLatencies))
 
 	for idx, s := range application.Services {
-		names[idx] = s.Name
-		servicesDescr[idx] = fmt.Sprintf("service(%s, %d, %d, [%s], [%s]).", s.Name, s.TProc, s.HWReqs, strings.Join(s.IoTReqs[:], ","), strings.Join(s.SecReqs[:], ","))
+		names[idx] = s.Id
+		servicesDescr[idx] = fmt.Sprintf("service(%s, %d, %d, [%s], [%s]).", s.Id, s.TProc, s.HWReqs, strings.Join(s.IoTReqs[:], ","), strings.Join(s.SecReqs[:], ","))
 	}
 
 	for idx, f := range application.Flows {

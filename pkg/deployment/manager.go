@@ -291,7 +291,7 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 				},
 				Spec: apiv1.PodSpec{Containers: []apiv1.Container{
 					{
-						Name:  service.Name,
+						Name:  service.Id,
 						Image: service.Image,
 						// TODO: Add other stuff
 					},
@@ -309,7 +309,7 @@ func (manager *Manager) undeploy(application *model.Application) error {
 	deploymentsClient := manager.clientset.AppsV1().Deployments(apiv1.NamespaceDefault)
 
 	for _, s := range application.Services {
-		log.Printf("Undeploying service %s", s.Name)
+		log.Printf("Undeploying service %s", s.Id)
 
 		deletePolicy := metav1.DeletePropagationForeground
 		if err := deploymentsClient.Delete(fmt.Sprintf("%s-%s", application.ID, s.Id), &metav1.DeleteOptions{

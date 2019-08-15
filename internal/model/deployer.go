@@ -19,7 +19,6 @@ type Application struct {
 // A Service is a part of an application that can be executed.
 type Service struct {
 	Id      string   `json:"id"`
-	Name    string   `json:"name"`
 	TProc   int      `json:"t_proc"`
 	HWReqs  int      `json:"hw_reqs"`
 	IoTReqs []string `json:"iot_reqs"`
