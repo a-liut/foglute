@@ -141,7 +141,7 @@ func handleMessage(manager *deployment.Manager, buffer *bytes.Buffer) {
 
 		err = manager.AddApplication(&app)
 		if err != nil {
-			log.Println("Cannot add application: ", err)
+			log.Printf("Cannot add application: %s\n", err)
 			return
 		}
 

@@ -53,6 +53,8 @@ func (eu *EdgeUsher) GetDeployment(mode deployment.Mode, application *model.Appl
 
 	cmdString := "echo \"" + appProlog + "\n" + infrProlog + "\n\n:- consult('" + euPath + "').\nquery(placement(Chain, Placement, Routes)).\n" + "\""
 
+	log.Println(cmdString)
+
 	result, err := callProblog(cmdString)
 	if err != nil {
 		return nil, err
@@ -63,6 +65,10 @@ func (eu *EdgeUsher) GetDeployment(mode deployment.Mode, application *model.Appl
 	placements, err := parseResult(result)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(placements) == 1 && placements[0].Probability == 0 {
+		return nil, fmt.Errorf("no placements available")
 	}
 
 	cleanedPlacements := cleanPlacements(placements, appSymbolTable, infrSymbolTable)
@@ -198,7 +204,7 @@ func getPlCodeFromApplication(application *model.Application) string {
 
 	for idx, s := range application.Services {
 		names[idx] = s.Id
-		servicesDescr[idx] = fmt.Sprintf("service(%s, %d, %d, [%s], [%s]).", s.Id, s.TProc, s.HWReqs, strings.Join(s.IoTReqs[:], ","), strings.Join(s.SecReqs[:], ","))
+		servicesDescr[idx] = fmt.Sprintf("service(%s, %d, %d, [%s], [%s]).", s.Id, s.TProc, s.HWReqs, strings.Join(s.IoTReqs, ","), strings.Join(s.SecReqs, ","))
 	}
 
 	for idx, f := range application.Flows {
@@ -206,16 +212,16 @@ func getPlCodeFromApplication(application *model.Application) string {
 	}
 
 	for idx, l := range application.MaxLatencies {
-		maxLatenciesDescr[idx] = fmt.Sprintf("maxLatency([%s], %d).", strings.Join(l.Chain[:], ","), l.Value)
+		maxLatenciesDescr[idx] = fmt.Sprintf("maxLatency([%s], %d).", strings.Join(l.Chain, ", "), l.Value)
 	}
 
 	return fmt.Sprintf("%%%% Application: %s\nchain(%s, [%s]).\n%s\n%s\n%s\n",
 		application.Name,
 		application.Name,
-		strings.Join(names[:], ","),
-		strings.Join(servicesDescr[:], "\n"),
-		strings.Join(flowsDescr[:], "\n"),
-		strings.Join(maxLatenciesDescr[:], "\n"),
+		strings.Join(names, ", "),
+		strings.Join(servicesDescr, "\n"),
+		strings.Join(flowsDescr, "\n"),
+		strings.Join(maxLatenciesDescr, "\n"),
 	)
 }
 
@@ -226,7 +232,7 @@ func getPlCodeFromInfrastructure(infrastructure *model.Infrastructure) string {
 
 	for _, n := range infrastructure.Nodes {
 		for _, profile := range n.Profiles {
-			nodesCode = append(nodesCode, fmt.Sprintf("%0.2f::node(%s, %d, [%s], [%s]).", profile.Probability, n.Name, profile.HWCaps, strings.Join(profile.IoTCaps[:], ","), strings.Join(profile.SecCaps[:], ",")))
+			nodesCode = append(nodesCode, fmt.Sprintf("%0.2f::node(%s, %d, [%s], [%s]).", profile.Probability, n.Name, profile.HWCaps, strings.Join(profile.IoTCaps, ","), strings.Join(profile.SecCaps, ",")))
 		}
 	}
 
@@ -234,7 +240,7 @@ func getPlCodeFromInfrastructure(infrastructure *model.Infrastructure) string {
 		linksCode[idx] = fmt.Sprintf("link(%s, %s, %d, %d).", l.Src, l.Dst, l.Latency, l.Bandwidth)
 	}
 
-	return fmt.Sprintf("%%%% Infrastructure: %s\n%s\n%s", "kube_infrastructure", strings.Join(nodesCode[:], "\n"), strings.Join(linksCode[:], "\n"))
+	return fmt.Sprintf("%%%% Infrastructure: %s\n%s\n%s", "kube_infrastructure", strings.Join(nodesCode, "\n"), strings.Join(linksCode, "\n"))
 }
 
 // Calls Problog using the command string passed
