@@ -30,6 +30,12 @@ type Service struct {
 type Image struct {
 	Name  string `json:"name"`
 	Local bool   `json:"local"`
+	Ports []Port `json:"ports"`
+}
+
+type Port struct {
+	HostPort      int `json:"host_port"`
+	ContainerPort int `json:"container_port"`
 }
 
 // A Flow is a requirement that a connection between two services must satisfy

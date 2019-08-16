@@ -271,6 +271,18 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 		pullPolicy = apiv1.PullNever
 	}
 
+	var ports []apiv1.ContainerPort
+	if len(service.Image.Ports) > 0 {
+		ports = make([]apiv1.ContainerPort, len(service.Image.Ports))
+
+		for i, port := range service.Image.Ports {
+			ports[i].Name = "http"
+			ports[i].Protocol = apiv1.ProtocolTCP
+			ports[i].ContainerPort = int32(port.ContainerPort)
+			ports[i].HostPort = int32(port.HostPort)
+		}
+	}
+
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-%s", application.ID, assignment.ServiceID),
@@ -295,13 +307,16 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 						"fogluted": "fogluted",
 					},
 				},
-				Spec: apiv1.PodSpec{Containers: []apiv1.Container{
-					{
-						Name:            service.Id,
-						Image:           service.Image.Name,
-						ImagePullPolicy: pullPolicy,
-					},
-				}}},
+				Spec: apiv1.PodSpec{
+					NodeName: assignment.NodeID, // Deploy the pod to the right node only
+					Containers: []apiv1.Container{
+						{
+							Name:            service.Id,
+							Image:           service.Image.Name,
+							ImagePullPolicy: pullPolicy,
+							Ports:           ports,
+						},
+					}}},
 		},
 	}
 
