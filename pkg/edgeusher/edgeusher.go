@@ -43,9 +43,11 @@ func (eu *EdgeUsher) GetDeployment(mode deployment.Mode, application *model.Appl
 		euPath = eu.execPath
 	}
 
+	table := NewSymbolTable()
+
 	// Cleanup strings within the objects
-	safeApp, appSymbolTable := cleanApp(application)
-	safeInfr, infrSymbolTable := cleanInfr(infrastructure)
+	safeApp := cleanApp(application, table)
+	safeInfr := cleanInfr(infrastructure, table)
 
 	// Get Problog code
 	appProlog := getPlCodeFromApplication(safeApp)
@@ -71,20 +73,20 @@ func (eu *EdgeUsher) GetDeployment(mode deployment.Mode, application *model.Appl
 		return nil, fmt.Errorf("no placements available")
 	}
 
-	cleanedPlacements := cleanPlacements(placements, appSymbolTable, infrSymbolTable)
+	cleanedPlacements := cleanPlacements(placements, table)
 
 	return cleanedPlacements, nil
 }
 
 // Converts all strings in placements to get real names for services and nodes using symbol tables.
-func cleanPlacements(placements []model.Placement, appSymbolTable *SymbolTable, infrSymbolTable *SymbolTable) []model.Placement {
+func cleanPlacements(placements []model.Placement, table *SymbolTable) []model.Placement {
 	cleaned := make([]model.Placement, len(placements))
 	for i, p := range placements {
 		cleaned[i].Probability = p.Probability
 		cleaned[i].Assignments = make([]model.Assignment, len(p.Assignments))
 		for j, a := range p.Assignments {
-			cleaned[i].Assignments[j].ServiceID = appSymbolTable.GetByUID(a.ServiceID)
-			cleaned[i].Assignments[j].NodeID = infrSymbolTable.GetByUID(a.NodeID)
+			cleaned[i].Assignments[j].ServiceID = table.GetByUID(a.ServiceID)
+			cleaned[i].Assignments[j].NodeID = table.GetByUID(a.NodeID)
 		}
 	}
 	return cleaned
@@ -93,9 +95,7 @@ func cleanPlacements(placements []model.Placement, appSymbolTable *SymbolTable, 
 // Removes from an application strings that can make EdgeUsher fail.
 // It produces a new application with updated strings and a symbol table that contains all the performed
 // mappings of the names.
-func cleanApp(application *model.Application) (*model.Application, *SymbolTable) {
-	table := NewSymbolTable()
-
+func cleanApp(application *model.Application, table *SymbolTable) *model.Application {
 	cleaned := &model.Application{
 		ID:           table.Add(application.ID),
 		Name:         table.Add(application.Name),
@@ -142,15 +142,13 @@ func cleanApp(application *model.Application) (*model.Application, *SymbolTable)
 		}
 	}
 
-	return cleaned, table
+	return cleaned
 }
 
 // Removes from an infrastructure strings that can make EdgeUsher fail.
 // It produces a new infrastructure with updated strings and a symbol table that contains all the performed
 // mappings of the names.
-func cleanInfr(infrastructure *model.Infrastructure) (*model.Infrastructure, *SymbolTable) {
-	table := NewSymbolTable()
-
+func cleanInfr(infrastructure *model.Infrastructure, table *SymbolTable) *model.Infrastructure {
 	cleaned := &model.Infrastructure{
 		Nodes: make([]model.Node, len(infrastructure.Nodes)),
 		Links: make([]model.Link, len(infrastructure.Links)),
@@ -192,7 +190,7 @@ func cleanInfr(infrastructure *model.Infrastructure) (*model.Infrastructure, *Sy
 		cleaned.Links[il].Bandwidth = link.Bandwidth
 	}
 
-	return cleaned, table
+	return cleaned
 }
 
 // Returns Problog code from an application

@@ -265,6 +265,12 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 		return nil, fmt.Errorf("service %s not found in application %s", assignment.ServiceID, application.ID)
 	}
 
+	// Image pull policy
+	pullPolicy := apiv1.PullAlways
+	if service.Image.Local {
+		pullPolicy = apiv1.PullNever
+	}
+
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-%s", application.ID, assignment.ServiceID),
@@ -291,9 +297,9 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 				},
 				Spec: apiv1.PodSpec{Containers: []apiv1.Container{
 					{
-						Name:  service.Id,
-						Image: service.Image,
-						// TODO: Add other stuff
+						Name:            service.Id,
+						Image:           service.Image.Name,
+						ImagePullPolicy: pullPolicy,
 					},
 				}}},
 		},
@@ -417,8 +423,16 @@ func convertNode(node apiv1.Node) model.Node {
 	}
 
 	n.Profiles[0].Probability = 1
-	n.Profiles[0].IoTCaps = strings.Split(node.Labels["iot_caps"], ",")
-	n.Profiles[0].SecCaps = strings.Split(node.Labels["sec_caps"], ",")
+	if iot_caps, exists := node.Labels["iot_caps"]; exists {
+		n.Profiles[0].IoTCaps = strings.Split(iot_caps, ",")
+	} else {
+		n.Profiles[0].IoTCaps = make([]string, 0)
+	}
+	if sec_caps, exists := node.Labels["sec_caps"]; exists {
+		n.Profiles[0].SecCaps = strings.Split(sec_caps, ",")
+	} else {
+		n.Profiles[0].SecCaps = make([]string, 0)
+	}
 
 	if hwcaps, err := strconv.ParseInt(node.Labels["hw_caps"], 10, 32); err == nil {
 		n.Profiles[0].HWCaps = int(hwcaps)

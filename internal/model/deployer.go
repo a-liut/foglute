@@ -23,7 +23,13 @@ type Service struct {
 	HWReqs  int      `json:"hw_reqs"`
 	IoTReqs []string `json:"iot_reqs"`
 	SecReqs []string `json:"sec_reqs"`
-	Image   string   `json:"image"`
+	Image   Image    `json:"image"`
+}
+
+// An Image is a description of a Docker image to be used by a Service
+type Image struct {
+	Name  string `json:"name"`
+	Local bool   `json:"local"`
 }
 
 // A Flow is a requirement that a connection between two services must satisfy
