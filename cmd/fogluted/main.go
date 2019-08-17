@@ -109,13 +109,15 @@ func initUDSInterface(manager *deployment.Manager, quit chan struct{}, wg *sync.
 	log.Println("Data channel closed")
 }
 
+type OperationType string
+
 const (
-	OperationAdd    = "add"
-	OperationDelete = "delete"
+	Add    OperationType = "add"
+	Delete               = "delete"
 )
 
 type Operation struct {
-	Op          string          `json:"op"`
+	Op          OperationType   `json:"op"`
 	Application json.RawMessage `json:"application"`
 }
 
@@ -130,7 +132,7 @@ func handleMessage(manager *deployment.Manager, buffer *bytes.Buffer) {
 	}
 
 	switch op.Op {
-	case OperationAdd:
+	case Add:
 		log.Println("Add operation")
 		var app model.Application
 		err := json.Unmarshal(op.Application, &app)
@@ -146,7 +148,7 @@ func handleMessage(manager *deployment.Manager, buffer *bytes.Buffer) {
 		}
 
 		log.Println("Application added successfully")
-	case OperationDelete:
+	case Delete:
 		log.Println("Delete operation")
 
 		var id string
