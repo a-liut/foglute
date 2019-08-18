@@ -35,6 +35,10 @@ type Manager struct {
 	done chan struct{}
 }
 
+func (manager *Manager) GetApplications() []*model.Application {
+	return manager.applications
+}
+
 // Returns the application with the specified id handled by the manager.
 func (manager *Manager) GetApplicationById(id string) (model.Application, bool) {
 	for _, app := range manager.applications {

@@ -24,7 +24,13 @@ func handleError(w http.ResponseWriter, status int, message string, args ...inte
 func applicationsHandler(manager *deployment.Manager, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		handleError(w, http.StatusNotImplemented, "")
+		apps := manager.GetApplications()
+
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(apps)
+		if err != nil {
+			log.Println(err)
+		}
 	case http.MethodPost:
 		// Decode the JSON in the body and overwrite 'tom' with it
 		d := json.NewDecoder(r.Body)
@@ -32,20 +38,22 @@ func applicationsHandler(manager *deployment.Manager, w http.ResponseWriter, r *
 		err := d.Decode(app)
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, err.Error())
+			return
 		}
 
 		err = manager.AddApplication(app)
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, "Cannot add application %s", app.Name)
+			return
 		}
 
-		w.WriteHeader(http.StatusOK)
 		_, err = fmt.Fprintln(w, "Application added successfully")
 		if err != nil {
 			log.Println(err)
 		}
 	default:
 		handleError(w, http.StatusMethodNotAllowed, "I can't do that.")
+		return
 	}
 }
 
@@ -56,19 +64,24 @@ func applicationHandler(manager *deployment.Manager, w http.ResponseWriter, r *h
 	app, exists := manager.GetApplicationById(id)
 	if !exists {
 		handleError(w, http.StatusNotFound, "Application %s not found", id)
+		return
 	}
 
 	switch r.Method {
 	case http.MethodGet:
-		handleError(w, http.StatusNotImplemented, "")
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(app)
+		if err != nil {
+			log.Println(err)
+		}
 	case http.MethodDelete:
 		err := manager.DeleteApplication(&app)
 		if err != nil {
 			log.Println()
 			handleError(w, http.StatusNotFound, "Cannot delete application %s: %s", app.Name, err)
+			return
 		}
 
-		w.WriteHeader(http.StatusOK)
 		_, err = fmt.Fprintln(w, "Application deleted successfully")
 		if err != nil {
 			log.Println(err)
