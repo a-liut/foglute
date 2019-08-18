@@ -98,10 +98,11 @@ type NodeProfile struct {
 
 // A Link is a connection between two nodes
 type Link struct {
-	Src       string `json:"src"`
-	Dst       string `json:"dst"`
-	Latency   int    `json:"latency"`
-	Bandwidth int    `json:"bandwidth"`
+	Probability float64 `json:"probability"`
+	Src         string  `json:"src"`
+	Dst         string  `json:"dst"`
+	Latency     int     `json:"latency"`
+	Bandwidth   int     `json:"bandwidth"`
 }
 
 // A Placement is a set of Node-Service assignments produced by a deploy analyzer

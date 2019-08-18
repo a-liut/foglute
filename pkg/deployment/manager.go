@@ -384,6 +384,7 @@ func (manager *Manager) getInfrastructure() (*model.Infrastructure, error) {
 	j := 0
 	for idx, src := range nodes {
 		for _, dst := range nodes[idx+1:] {
+			i.Links[j].Probability = 1   // TODO
 			i.Links[j].Bandwidth = 99999 // TODO
 			i.Links[j].Latency = 99999   // TODO
 			i.Links[j].Src = src.ID

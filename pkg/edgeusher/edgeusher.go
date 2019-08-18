@@ -184,6 +184,7 @@ func cleanInfr(infrastructure *model.Infrastructure, table *SymbolTable) *model.
 	}
 
 	for il, link := range infrastructure.Links {
+		cleaned.Links[il].Probability = link.Probability
 		cleaned.Links[il].Src = table.Add(link.Src)
 		cleaned.Links[il].Dst = table.Add(link.Dst)
 		cleaned.Links[il].Latency = link.Latency
@@ -235,7 +236,7 @@ func getPlCodeFromInfrastructure(infrastructure *model.Infrastructure) string {
 	}
 
 	for idx, l := range infrastructure.Links {
-		linksCode[idx] = fmt.Sprintf("link(%s, %s, %d, %d).", l.Src, l.Dst, l.Latency, l.Bandwidth)
+		linksCode[idx] = fmt.Sprintf("%0.2f::link(%s, %s, %d, %d).", l.Probability, l.Src, l.Dst, l.Latency, l.Bandwidth)
 	}
 
 	return fmt.Sprintf("%%%% Infrastructure: %s\n%s\n%s", "kube_infrastructure", strings.Join(nodesCode, "\n"), strings.Join(linksCode, "\n"))
