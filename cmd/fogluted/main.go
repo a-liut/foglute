@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"foglute/internal/model"
 	"foglute/pkg/deployment"
 	"foglute/pkg/edgeusher"
@@ -39,6 +40,11 @@ func main() {
 	edgeUsherPath := flag.String("edgeusher", "", "absolute path to EdgeUsher folder")
 
 	flag.Parse()
+
+	if *edgeUsherPath == "" {
+		fmt.Println("Missing EdgeUsher path")
+		os.Exit(1)
+	}
 
 	stopChan := make(chan os.Signal, 1)
 	quit := make(chan struct{}, 1)
