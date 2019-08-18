@@ -21,15 +21,16 @@ and maintained by `fogluted`.
 
 ## How to use fogluted
 
-After proper setup, `fogluted` uses a Unix socket to receive new commands.
+`fogluted` exposes a REST interface:
 
-Currently, it supports only two commands:
-
-- Add: Add a new application to the manager. This operation triggers the deployment of the application.
-- Delete: Removes an application from the manager. This operation triggers the deletion of the application from the kubernetes cluster.
-
-The command is specified as a JSON object and the structure changes depending on the operation. See `/examples` folder for some examples.
+| Path               | Method | Description                                        |
+|--------------------|--------|----------------------------------------------------|
+| /applications      | GET    | Get information about all active applications      |
+|                    | POST   | Add a new application                              |
+| /applications/{id} | GET    | Get information about application with specific ID |
+| /applications/{id} | DELETE | Remove the application with a specific ID          |
 
 ## Todo
 
 - Watch the infrastructure and redeploy services if needed.
+- Implement proper messages for the REST interface

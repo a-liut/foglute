@@ -6,15 +6,12 @@ Microservice Fog Orchestration platform.
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"foglute/internal/model"
 	"foglute/pkg/deployment"
 	"foglute/pkg/edgeusher"
 	"foglute/pkg/infrastructure"
-	"foglute/pkg/uds"
+	"foglute/pkg/interface"
 	"log"
 	"math/rand"
 	"os"
@@ -68,8 +65,14 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	// Start services
-	go initUDSInterface(manager, quit, &wg)
+	// Start HTTP interface
+	go func() {
+		defer wg.Done()
+
+		wg.Add(1)
+
+		_interface.StartHTTPInterface(manager, quit)
+	}()
 
 	<-stopChan
 
@@ -87,97 +90,4 @@ func homeDir() string {
 		return h
 	}
 	return os.Getenv("USERPROFILE") // windows
-}
-
-// Starts the Unix socket. The socket is used as input for new commands to perform
-func initUDSInterface(manager *deployment.Manager, quit chan struct{}, wg *sync.WaitGroup) {
-	wg.Add(1)
-
-	i := uds.NewUDSSocketInterface()
-	go func() {
-		defer wg.Done()
-		go i.Start()
-
-		<-quit
-
-		log.Printf("Stopping uds ")
-
-		i.Stop()
-	}()
-
-	log.Println("Waiting for applications")
-
-	for d := range i.Data() {
-		log.Println("A new command has been submitted!")
-		handleMessage(manager, d)
-	}
-
-	log.Println("Data channel closed")
-}
-
-type OperationType string
-
-const (
-	Add    OperationType = "add"
-	Delete               = "delete"
-)
-
-type Operation struct {
-	Op          OperationType   `json:"op"`
-	Application json.RawMessage `json:"application"`
-}
-
-// Handles a new message arrived through the Unix socket
-func handleMessage(manager *deployment.Manager, buffer *bytes.Buffer) {
-	// Parse operation
-	var op Operation
-	err := json.Unmarshal(buffer.Bytes(), &op)
-	if err != nil {
-		log.Println("Cannot parse operation from received data!")
-		return
-	}
-
-	switch op.Op {
-	case Add:
-		log.Println("Add operation")
-		var app model.Application
-		err := json.Unmarshal(op.Application, &app)
-		if err != nil {
-			log.Println("Cannot parse application from received data!")
-			return
-		}
-
-		err = manager.AddApplication(&app)
-		if err != nil {
-			log.Printf("Cannot add application: %s\n", err)
-			return
-		}
-
-		log.Println("Application added successfully")
-	case Delete:
-		log.Println("Delete operation")
-
-		var id string
-		err := json.Unmarshal(op.Application, &id)
-		if err != nil {
-			log.Println("Cannot parse application id from received data!")
-			return
-		}
-
-		app, exists := manager.GetApplicationById(id)
-		if !exists {
-			log.Printf("Application %s not found", id)
-			return
-		}
-
-		err = manager.DeleteApplication(&app)
-		if err != nil {
-			log.Println("Cannot delete application: ", err)
-			return
-		}
-
-		log.Println("Application deleted successfully")
-	default:
-		log.Println("Operation not recognised")
-	}
 }
