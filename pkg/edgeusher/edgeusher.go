@@ -231,7 +231,7 @@ func getPlCodeFromInfrastructure(infrastructure *model.Infrastructure) string {
 
 	for _, n := range infrastructure.Nodes {
 		for _, profile := range n.Profiles {
-			nodesCode = append(nodesCode, fmt.Sprintf("%0.2f::node(%s, %d, [%s], [%s]).", profile.Probability, n.Name, profile.HWCaps, strings.Join(profile.IoTCaps, ","), strings.Join(profile.SecCaps, ",")))
+			nodesCode = append(nodesCode, fmt.Sprintf("%0.2f::node(%s, %d, [%s], [%s]).", profile.Probability, n.ID, profile.HWCaps, strings.Join(profile.IoTCaps, ","), strings.Join(profile.SecCaps, ",")))
 		}
 	}
 

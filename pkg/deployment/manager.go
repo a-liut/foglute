@@ -209,7 +209,7 @@ func (manager *Manager) deploy(application *model.Application) error {
 		return err
 	}
 
-	log.Printf("currentInfrastructure: %s\n", currentInfrastructure)
+	log.Printf("current Infrastructure: (%d) %s\n", len(currentInfrastructure.Nodes), currentInfrastructure)
 
 	log.Printf("Getting a deployment for app %s (%s)\n", application.Name, application.ID)
 
