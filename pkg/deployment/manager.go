@@ -8,6 +8,7 @@ package deployment
 import (
 	"fmt"
 	"foglute/internal/model"
+	"foglute/pkg/infrastructure"
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,6 +27,9 @@ type Manager struct {
 
 	// Kubernetes Clientset
 	clientset *kubernetes.Clientset
+
+	// NodeWatcher on Kubernetes nodes
+	nodeWatcher *infrastructure.NodeWatcher
 
 	// Deployed applications
 	applications []*model.Application
@@ -123,13 +127,13 @@ func NewDeploymentManager(usher *DeployAnalyzer, clientset *kubernetes.Clientset
 			analyzer:     usher,
 			clientset:    clientset,
 			applications: make([]*model.Application, 0),
+			nodeWatcher:  nil,
 
 			quit: quit,
 			done: make(chan struct{}),
 		}
 
-		err := instance.init()
-		if err != nil {
+		if err := instance.init(); err != nil {
 			return nil, err
 		}
 	}
@@ -142,6 +146,14 @@ func NewDeploymentManager(usher *DeployAnalyzer, clientset *kubernetes.Clientset
 func (manager *Manager) init() error {
 	log.Printf("Initializing Assignment manager")
 	// TODO: Check actual status of deployed applications
+
+	// Start node watcher
+	w, err := infrastructure.NewNodeWatcher(manager.clientset)
+	if err != nil {
+		return err
+	}
+
+	instance.nodeWatcher = w
 
 	return nil
 }
@@ -403,12 +415,9 @@ func (manager *Manager) getInfrastructure() (*model.Infrastructure, error) {
 
 // Get active Kubernetes cluster nodes
 func (manager *Manager) getNodes() ([]model.Node, error) {
-	knodes, err := manager.clientset.CoreV1().Nodes().List(metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
+	nodes := manager.nodeWatcher.GetNodes()
 
-	return convertNodes(knodes.Items), nil
+	return convertNodes(nodes), nil
 }
 
 // Converts a list of Kubernetes nodes to a list of Manager nodes
