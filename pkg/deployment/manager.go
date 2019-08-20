@@ -25,9 +25,15 @@ const (
 	defaultLinkBandwidth = 99999
 )
 
-// The Manager is responsible to deploy applications.
+// A Deploy represent an application that is managed by the Manager and is active on the cluster.
+type Deploy struct {
+	Application *model.Application `json:"application"`
+	Placement   *model.Placement   `json:"placement"`
+}
+
+// The Manager is responsible to deploy deployments.
 type Manager struct {
-	// Analyzer to produce placements for applications
+	// Analyzer to produce placements for deployments
 	analyzer *DeployAnalyzer
 
 	// Kubernetes Clientset
@@ -36,33 +42,33 @@ type Manager struct {
 	// NodeWatcher on Kubernetes nodes
 	nodeWatcher *infrastructure.NodeWatcher
 
-	// Deployed applications
-	applications []*model.Application
+	// Deployed deployments
+	deployments []*Deploy
 
 	// Stop channels
 	quit chan struct{}
 	done chan struct{}
 }
 
-func (manager *Manager) GetApplications() []*model.Application {
-	return manager.applications
+func (manager *Manager) GetDeployments() []*Deploy {
+	return manager.deployments
 }
 
 // Returns the application with the specified id handled by the manager.
-func (manager *Manager) GetApplicationById(id string) (model.Application, bool) {
-	for _, app := range manager.applications {
-		if app.ID == id {
-			return *app, true
+func (manager *Manager) GetDeployByApplicationID(id string) (*Deploy, bool) {
+	for _, dep := range manager.deployments {
+		if dep.Application.ID == id {
+			return dep, true
 		}
 	}
 
-	return model.Application{}, false
+	return nil, false
 }
 
 // Returns true if the provided application is currently deployed by the manager
 func (manager *Manager) HasApplication(application *model.Application) bool {
-	for _, app := range manager.applications {
-		if application.ID == app.ID {
+	for _, dep := range manager.deployments {
+		if application.ID == dep.Application.ID {
 			return true
 		}
 	}
@@ -74,27 +80,33 @@ func (manager *Manager) HasApplication(application *model.Application) bool {
 // it is deployed and added to the manager
 func (manager *Manager) AddApplication(application *model.Application) error {
 	if manager.HasApplication(application) {
-		err := manager.redeploy(application)
+		placement, err := manager.redeploy(application)
 		if err != nil {
 			return err
 		}
 
 		// Update the application in the list
-		for i, app := range manager.applications {
-			if application.ID == app.ID {
-				manager.applications[i] = application
+		for i, dep := range manager.deployments {
+			if application.ID == dep.Application.ID {
+				manager.deployments[i].Application = application
+				manager.deployments[i].Placement = placement
 				break
 			}
 		}
 	} else {
 		// Deploy the new application
-		err := manager.deploy(application)
+		placement, err := manager.deploy(application)
 		if err != nil {
 			return err
 		}
 
-		log.Printf("Adding %s to manager's applications", application.ID)
-		manager.applications = append(manager.applications, application)
+		d := &Deploy{
+			Application: application,
+			Placement:   placement,
+		}
+
+		log.Printf("Adding %s to manager's active deployments", application.ID)
+		manager.deployments = append(manager.deployments, d)
 	}
 
 	return nil
@@ -112,10 +124,10 @@ func (manager *Manager) DeleteApplication(application *model.Application) error 
 		return err
 	}
 
-	// Remove app from the applications list
-	for i, app := range manager.applications {
-		if app.ID == application.ID {
-			manager.applications = append(manager.applications[:i], manager.applications[i+1:]...)
+	// Remove app from the deployments list
+	for i, dep := range manager.deployments {
+		if dep.Application.ID == application.ID {
+			manager.deployments = append(manager.deployments[:i], manager.deployments[i+1:]...)
 		}
 	}
 
@@ -129,10 +141,10 @@ var instance *Manager
 func NewDeploymentManager(usher *DeployAnalyzer, clientset *kubernetes.Clientset, quit chan struct{}) (*Manager, error) {
 	if instance == nil {
 		instance = &Manager{
-			analyzer:     usher,
-			clientset:    clientset,
-			applications: make([]*model.Application, 0),
-			nodeWatcher:  nil,
+			analyzer:    usher,
+			clientset:   clientset,
+			deployments: make([]*Deploy, 0),
+			nodeWatcher: nil,
 
 			quit: quit,
 			done: make(chan struct{}),
@@ -147,10 +159,10 @@ func NewDeploymentManager(usher *DeployAnalyzer, clientset *kubernetes.Clientset
 }
 
 // Initialize the Manager.
-// It reads the current state of the Kubernetes cluster to get the actually deployed applications.
+// It reads the current state of the Kubernetes cluster to get the actually deployed deployments.
 func (manager *Manager) init() error {
 	log.Printf("Initializing Assignment manager")
-	// TODO: Check actual status of deployed applications
+	// TODO: Check actual status of deployed deployments
 
 	// Start node watcher
 	w, err := infrastructure.NewNodeWatcher(manager.clientset)
@@ -163,9 +175,9 @@ func (manager *Manager) init() error {
 	return nil
 }
 
-// Perform the redeploy of all applications managed by the Manager
+// Perform the redeploy of all deployments managed by the Manager
 func (manager *Manager) redeployAll() []error {
-	log.Printf("Redeploying applications (%d) for new node configuration", len(manager.applications))
+	log.Printf("Redeploying deployments (%d) for new node configuration", len(manager.deployments))
 
 	var errs []error
 
@@ -173,12 +185,15 @@ func (manager *Manager) redeployAll() []error {
 	errors := make(chan error)
 	var wg sync.WaitGroup
 
-	for _, app := range manager.applications {
+	for _, dep := range manager.deployments {
 		wg.Add(1)
 
 		go func() {
 			defer wg.Done()
-			err := manager.redeploy(app)
+			placement, err := manager.redeploy(dep.Application)
+
+			// Update application's placement
+			dep.Placement = placement
 
 			if err != nil {
 				errors <- err
@@ -206,12 +221,12 @@ func (manager *Manager) redeployAll() []error {
 
 // Performs the deploy of an application
 // It gets the current state of the Kubernetes cluster and produce a feasible placement for the application
-func (manager *Manager) deploy(application *model.Application) error {
+func (manager *Manager) deploy(application *model.Application) (*model.Placement, error) {
 	log.Printf("Call to deploy with app: %s (%s)\n", application.ID, application.Name)
 
 	currentInfrastructure, err := manager.getInfrastructure()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Printf("current Infrastructure: (%d) %s\n", len(currentInfrastructure.Nodes), currentInfrastructure)
@@ -220,26 +235,26 @@ func (manager *Manager) deploy(application *model.Application) error {
 
 	placements, err := (*manager.analyzer).GetDeployment(Normal, application, currentInfrastructure)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Printf("Possible placements: %s\n", placements)
 
 	best, err := pickBestPlacement(placements)
 	if err != nil {
-		return fmt.Errorf("cannot devise a placement for app %s: %s", application.ID, err)
+		return nil, fmt.Errorf("cannot devise a placement for app %s: %s", application.ID, err)
 	}
 
 	log.Printf("Best deployment: %s\n", best)
 
 	err = manager.performPlacement(application, best)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Printf("Application %s successfully deployed\n", application.ID)
 
-	return nil
+	return best, nil
 }
 
 func pickBestPlacement(placements []model.Placement) (*model.Placement, error) {
@@ -369,22 +384,23 @@ func (manager *Manager) undeploy(application *model.Application) error {
 
 // Performs the redeploy of an application
 // It first undeploy the application and then deploy it again.
-func (manager *Manager) redeploy(application *model.Application) error {
+func (manager *Manager) redeploy(application *model.Application) (*model.Placement, error) {
 	log.Printf("Redeploying application %s...", application.Name)
 
 	if err := manager.undeploy(application); err != nil {
 		log.Printf("application %s undeploy error: %s", application.Name, err)
-		return err
+		return nil, err
 	}
 
-	if err := manager.deploy(application); err != nil {
+	placement, err := manager.deploy(application)
+	if err != nil {
 		log.Printf("application %s deploy error: %s", application.Name, err)
-		return err
+		return nil, err
 	}
 
 	log.Printf("Application %s redeployed successfully", application.Name)
 
-	return nil
+	return placement, nil
 }
 
 // Returns the infrastructure based on Kubernetes cluster nodes

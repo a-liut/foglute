@@ -24,10 +24,10 @@ func handleError(w http.ResponseWriter, status int, message string, args ...inte
 func applicationsHandler(manager *deployment.Manager, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		apps := manager.GetApplications()
+		deployments := manager.GetDeployments()
 
 		w.Header().Set("Content-Type", "application/json")
-		err := json.NewEncoder(w).Encode(apps)
+		err := json.NewEncoder(w).Encode(deployments)
 		if err != nil {
 			log.Println(err)
 		}
@@ -61,7 +61,7 @@ func applicationHandler(manager *deployment.Manager, w http.ResponseWriter, r *h
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	app, exists := manager.GetApplicationById(id)
+	deploy, exists := manager.GetDeployByApplicationID(id)
 	if !exists {
 		handleError(w, http.StatusNotFound, "Application %s not found", id)
 		return
@@ -70,15 +70,15 @@ func applicationHandler(manager *deployment.Manager, w http.ResponseWriter, r *h
 	switch r.Method {
 	case http.MethodGet:
 		w.Header().Set("Content-Type", "application/json")
-		err := json.NewEncoder(w).Encode(app)
+		err := json.NewEncoder(w).Encode(deploy)
 		if err != nil {
 			log.Println(err)
 		}
 	case http.MethodDelete:
-		err := manager.DeleteApplication(&app)
+		err := manager.DeleteApplication(deploy.Application)
 		if err != nil {
 			log.Println()
-			handleError(w, http.StatusNotFound, "Cannot delete application %s: %s", app.Name, err)
+			handleError(w, http.StatusNotFound, "Cannot delete application %s: %s", deploy.Application.Name, err)
 			return
 		}
 
