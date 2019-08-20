@@ -34,8 +34,9 @@ type Image struct {
 }
 
 type Port struct {
-	//HostPort      int `json:"host_port"`
+	HostPort      int `json:"host_port"`
 	ContainerPort int `json:"container_port"`
+	Expose        int `json:"expose"`
 }
 
 // A Flow is a requirement that a connection between two services must satisfy

@@ -9,8 +9,9 @@
         "local": true,
         "ports": [
           {
+            "host_port": 5000,
             "container_port": 8080,
-            "expose": 5002
+            "expose": 30000
           }
         ]
       },
@@ -26,8 +27,9 @@
         "local": true,
         "ports": [
           {
+            "host_port": 5001,
             "container_port": 8080,
-            "expose": 5001
+            "expose": 30001
           }
         ]
       },

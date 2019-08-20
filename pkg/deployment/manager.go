@@ -12,6 +12,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/pointer"
 	"log"
@@ -279,7 +280,7 @@ func pickBestPlacement(placements []model.Placement) (*model.Placement, error) {
 func (manager *Manager) performPlacement(application *model.Application, placement *model.Placement) error {
 	log.Println("Performing placement")
 	for _, assignment := range placement.Assignments {
-		deployment, err := manager.createDeploymentFromAssignment(application, &assignment)
+		deployment, services, err := manager.createDeploymentFromAssignment(application, &assignment)
 		if err != nil {
 			// TODO: implement a rollback procedure!
 			return err
@@ -293,13 +294,25 @@ func (manager *Manager) performPlacement(application *model.Application, placeme
 			return err
 		}
 
-		log.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
+		servicesClient := manager.clientset.CoreV1().Services(apiv1.NamespaceDefault)
+
+		for _, s := range services {
+			serviceResult, err := servicesClient.Create(s)
+			if err != nil {
+				// TODO: implement a rollback procedure!
+				return err
+			}
+
+			log.Printf("Created Service for %s on ports %v\n", result.GetObjectMeta().GetName(), serviceResult.Spec.Ports)
+		}
+
+		log.Printf("Created Deployment %q.\n", result.GetObjectMeta().GetName())
 	}
 
 	return nil
 }
 
-func (manager *Manager) createDeploymentFromAssignment(application *model.Application, assignment *model.Assignment) (*appsv1.Deployment, error) {
+func (manager *Manager) createDeploymentFromAssignment(application *model.Application, assignment *model.Assignment) (*appsv1.Deployment, []*apiv1.Service, error) {
 	var service *model.Service
 	for _, s := range application.Services {
 		if s.Id == assignment.ServiceID {
@@ -309,8 +322,10 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 	}
 
 	if service == nil {
-		return nil, fmt.Errorf("service %s not found in application %s", assignment.ServiceID, application.ID)
+		return nil, nil, fmt.Errorf("service %s not found in application %s", assignment.ServiceID, application.ID)
 	}
+
+	services := make([]*apiv1.Service, 0)
 
 	// Image pull policy
 	pullPolicy := apiv1.PullAlways
@@ -326,14 +341,51 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 			ports[i].Name = "http"
 			ports[i].Protocol = apiv1.ProtocolTCP
 			ports[i].ContainerPort = int32(port.ContainerPort)
-			//ports[i].HostPort = int32(port.HostPort)
+			ports[i].HostPort = int32(port.HostPort)
 
+			if port.Expose > 0 {
+				// Create a service for it
+				s := &apiv1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: fmt.Sprintf("%s-%s", application.ID, assignment.ServiceID),
+						Labels: map[string]string{
+							"app":      application.Name, // TODO: Use a unique ID
+							"service":  assignment.ServiceID,
+							"fogluted": "fogluted",
+						},
+					},
+					Spec: apiv1.ServiceSpec{
+						Ports: []apiv1.ServicePort{
+							{
+								Protocol: "TCP",
+								NodePort: int32(port.Expose),
+								Port:     int32(port.HostPort),
+								TargetPort: intstr.IntOrString{
+									Type:   intstr.Int,
+									IntVal: int32(port.ContainerPort),
+									StrVal: string(port.ContainerPort),
+								},
+							},
+						},
+						Selector: map[string]string{
+							"app":      application.Name, // TODO: Use a unique ID
+							"service":  assignment.ServiceID,
+							"fogluted": "fogluted",
+						},
+						Type: apiv1.ServiceTypeNodePort,
+					},
+				}
+
+				services = append(services, s)
+			}
 		}
 	}
 
+	deploymentName := fmt.Sprintf("%s-%s", application.ID, assignment.ServiceID)
+
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", application.ID, assignment.ServiceID),
+			Name: deploymentName,
 			Labels: map[string]string{
 				"app":      application.Name, // TODO: Use a unique ID
 				"service":  assignment.ServiceID,
@@ -368,7 +420,7 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 		},
 	}
 
-	return deployment, nil
+	return deployment, services, nil
 }
 
 // Deletes an application from the Kubernetes cluster
@@ -378,19 +430,38 @@ func (manager *Manager) undeploy(application *model.Application) error {
 	startTime := time.Now()
 
 	deploymentsClient := manager.clientset.AppsV1().Deployments(apiv1.NamespaceDefault)
+	serviceClient := manager.clientset.CoreV1().Services(apiv1.NamespaceDefault)
 
 	for _, s := range application.Services {
 		log.Printf("Undeploying service %s", s.Id)
 
+		deploymentName := fmt.Sprintf("%s-%s", application.ID, s.Id)
 		deletePolicy := metav1.DeletePropagationForeground
-		if err := deploymentsClient.Delete(fmt.Sprintf("%s-%s", application.ID, s.Id), &metav1.DeleteOptions{
+		if err := deploymentsClient.Delete(deploymentName, &metav1.DeleteOptions{
 			PropagationPolicy: &deletePolicy,
 		}); err != nil {
 			// TODO: implement a rollback procedure!
 			return err
 		}
 
-		log.Printf("Deleted deployment %q.\n", s.Id)
+		for _, port := range s.Image.Ports {
+			if port.Expose > 0 {
+				// Remove the associated service
+				serviceName := fmt.Sprintf("%s-%s", application.ID, s.Id)
+				err := serviceClient.Delete(serviceName, &metav1.DeleteOptions{
+					PropagationPolicy: &deletePolicy,
+				})
+
+				if err != nil {
+					// TODO: implement a rollback procedure!
+					return err
+				}
+
+				log.Printf("Deleted Service %q.\n", serviceName)
+			}
+		}
+
+		log.Printf("Deleted Deployment %q.\n", s.Id)
 	}
 
 	elapsed := time.Since(startTime)
