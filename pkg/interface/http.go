@@ -17,22 +17,40 @@ const (
 	Port    = "8080"
 )
 
+// A Response is a wrapper object for server's responses
+type Response struct {
+	Message string `json:"message"`
+	Error   string `json:"error"`
+}
+
+func newResponse(message string, errorMessage string) *Response {
+	return &Response{
+		Message: message,
+		Error:   errorMessage,
+	}
+}
+
+// Handles error responses
 func handleError(w http.ResponseWriter, status int, message string, args ...interface{}) {
-	http.Error(w, fmt.Sprintf(message, args), status)
+	r := newResponse("", fmt.Sprintf(message, args))
+	j, _ := json.Marshal(r)
+	http.Error(w, string(j), status)
 }
 
 func applicationsHandler(manager *deployment.Manager, w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	switch r.Method {
 	case http.MethodGet:
+		// Returns all active deployments
 		deployments := manager.GetDeployments()
 
-		w.Header().Set("Content-Type", "application/json")
 		err := json.NewEncoder(w).Encode(deployments)
 		if err != nil {
 			log.Println(err)
 		}
 	case http.MethodPost:
-		// Decode the JSON in the body and overwrite 'tom' with it
+		// Decode the application
 		d := json.NewDecoder(r.Body)
 		app := &model.Application{}
 		err := d.Decode(app)
@@ -41,26 +59,32 @@ func applicationsHandler(manager *deployment.Manager, w http.ResponseWriter, r *
 			return
 		}
 
+		// Add the application to the manager
 		err = manager.AddApplication(app)
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, "Cannot add application %s", app.Name)
 			return
 		}
 
-		_, err = fmt.Fprintln(w, "Application added successfully")
+		// Send a successful response
+		r := newResponse("Application added successfully", "")
+		j, _ := json.Marshal(r)
+		_, err = fmt.Fprintln(w, string(j))
 		if err != nil {
 			log.Println(err)
 		}
 	default:
-		handleError(w, http.StatusMethodNotAllowed, "I can't do that.")
+		handleError(w, http.StatusMethodNotAllowed, "Operation not allowed")
 		return
 	}
 }
 
 func applicationHandler(manager *deployment.Manager, w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
 	id := vars["id"]
 
+	// Fetch the application
 	deploy, exists := manager.GetDeployByApplicationID(id)
 	if !exists {
 		handleError(w, http.StatusNotFound, "Application %s not found", id)
@@ -69,12 +93,13 @@ func applicationHandler(manager *deployment.Manager, w http.ResponseWriter, r *h
 
 	switch r.Method {
 	case http.MethodGet:
-		w.Header().Set("Content-Type", "application/json")
+		// Send the application
 		err := json.NewEncoder(w).Encode(deploy)
 		if err != nil {
 			log.Println(err)
 		}
 	case http.MethodDelete:
+		// Remove the application from the manager
 		err := manager.DeleteApplication(deploy.Application)
 		if err != nil {
 			log.Println()
@@ -82,13 +107,17 @@ func applicationHandler(manager *deployment.Manager, w http.ResponseWriter, r *h
 			return
 		}
 
-		_, err = fmt.Fprintln(w, "Application deleted successfully")
+		// Send a successful response
+		r := newResponse("Application deleted successfully", "")
+		j, _ := json.Marshal(r)
+		_, err = fmt.Fprintln(w, string(j))
 		if err != nil {
 			log.Println(err)
 		}
 	}
 }
 
+// Starts the HTTP server
 func StartHTTPInterface(manager *deployment.Manager, quit chan struct{}) {
 	s := http.Server{
 		Addr: fmt.Sprintf("%s:%s", Address, Port),
