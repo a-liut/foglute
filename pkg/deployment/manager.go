@@ -107,7 +107,7 @@ func (manager *Manager) AddApplication(application *model.Application) []error {
 			Placement:   placement,
 		}
 
-		log.Printf("Adding %s to manager's active deployments", application.ID)
+		log.Printf("Adding %s to manager's active deployments\n", application.ID)
 		manager.deployments = append(manager.deployments, d)
 	}
 
@@ -163,7 +163,7 @@ func NewDeploymentManager(usher *DeployAnalyzer, clientset *kubernetes.Clientset
 // Initialize the Manager.
 // It reads the current state of the Kubernetes cluster to get the actually deployed deployments.
 func (manager *Manager) init() error {
-	log.Printf("Initializing Assignment manager")
+	log.Println("Initializing Assignment manager")
 	// TODO: Check actual status of deployed deployments
 
 	// Start node watcher
@@ -179,7 +179,7 @@ func (manager *Manager) init() error {
 
 // Perform the redeploy of all deployments managed by the Manager
 func (manager *Manager) redeployAll() []error {
-	log.Printf("Redeploying deployments (%d) for new node configuration", len(manager.deployments))
+	log.Printf("Redeploying deployments (%d) for new node configuration\n", len(manager.deployments))
 
 	startTime := time.Now()
 
@@ -209,7 +209,7 @@ func (manager *Manager) redeployAll() []error {
 
 	// Wait for goroutines to end
 	go func() {
-		log.Printf("waiting for redeployment finishes...")
+		log.Println("Waiting for redeployment finishes...")
 		wg.Wait()
 
 		elapsed := time.Since(startTime)
@@ -223,7 +223,7 @@ func (manager *Manager) redeployAll() []error {
 		errs = append(errs, fmt.Errorf("an application cannot be redeployed: %s", err))
 	}
 
-	log.Printf("Redeployment finisher with %d errors", len(errs))
+	log.Printf("Redeployment finishes with %d errors\n", len(errs))
 
 	return errs
 }
@@ -272,6 +272,7 @@ func (manager *Manager) deploy(application *model.Application) (*model.Placement
 	return best, nil
 }
 
+// Returns the best placement from a list of placements
 func pickBestPlacement(placements []model.Placement) (*model.Placement, error) {
 	if len(placements) == 0 {
 		return nil, fmt.Errorf("no feasible deployments")
@@ -280,6 +281,7 @@ func pickBestPlacement(placements []model.Placement) (*model.Placement, error) {
 	return &placements[0], nil
 }
 
+// Performs proper operations in order to apply the placement to the Kubernetes cluster
 func (manager *Manager) performPlacement(application *model.Application, placement *model.Placement) []error {
 	log.Println("Performing placement")
 
@@ -324,6 +326,7 @@ func (manager *Manager) performPlacement(application *model.Application, placeme
 	return nil
 }
 
+// Returns Kubernetes Deployments and Services for the given Application according to a given Assignment
 func (manager *Manager) createDeploymentFromAssignment(application *model.Application, assignment *model.Assignment) (*appsv1.Deployment, []*apiv1.Service, error) {
 	var service *model.Service
 	for _, s := range application.Services {
@@ -449,7 +452,7 @@ func (manager *Manager) undeploy(application *model.Application) []error {
 	errors := make([]error, 0)
 
 	for _, s := range application.Services {
-		log.Printf("Undeploying service %s", s.Id)
+		log.Printf("Undeploying service %s\n", s.Id)
 
 		deploymentName := fmt.Sprintf("%s-%s", application.ID, s.Id)
 		deletePolicy := metav1.DeletePropagationForeground
@@ -458,7 +461,7 @@ func (manager *Manager) undeploy(application *model.Application) []error {
 		})
 
 		if err != nil {
-			log.Printf("Cannot delete Deployment %s: %s", deploymentName, err)
+			log.Printf("Cannot delete Deployment %s: %s\n", deploymentName, err)
 			errors = append(errors, err)
 		} else {
 			log.Printf("Deployment %s deleted.\n", s.Id)
@@ -474,7 +477,7 @@ func (manager *Manager) undeploy(application *model.Application) []error {
 				})
 
 				if err != nil {
-					log.Printf("Cannot undeploy Service %s: %s", serviceName, err)
+					log.Printf("Cannot undeploy Service %s: %s\n", serviceName, err)
 					errors = append(errors, err)
 				} else {
 					log.Printf("Service %s deleted.\n", serviceName)
@@ -496,20 +499,20 @@ func (manager *Manager) undeploy(application *model.Application) []error {
 // Performs the redeploy of an application
 // It first undeploy the application and then deploy it again.
 func (manager *Manager) redeploy(application *model.Application) (*model.Placement, []error) {
-	log.Printf("Redeploying application %s...", application.Name)
+	log.Printf("Redeploying application %s...\n", application.Name)
 
 	if err := manager.undeploy(application); err != nil {
-		log.Printf("application %s undeploy error: %s", application.Name, err)
+		log.Printf("Application %s undeploy error: %s\n", application.Name, err)
 		return nil, err
 	}
 
 	placement, err := manager.deploy(application)
 	if err != nil {
-		log.Printf("application %s deploy error: %s", application.Name, err)
+		log.Printf("Application %s deploy error: %s\n", application.Name, err)
 		return nil, err
 	}
 
-	log.Printf("Application %s redeployed successfully", application.Name)
+	log.Printf("Application %s redeployed successfully\n", application.Name)
 
 	return placement, nil
 }

@@ -39,7 +39,7 @@ func (eu *EdgeUsher) GetDeployment(mode deployment.Mode, application *model.Appl
 	case deployment.Heuristic:
 		euPath = eu.hExecPath
 	default:
-		log.Printf("Analysis mode not recognized: %d. Falling back to Normal analysis.", mode)
+		log.Printf("Analysis mode not recognized: %d. Falling back to Normal analysis.\n", mode)
 		euPath = eu.execPath
 	}
 
@@ -306,7 +306,7 @@ func NewEdgeUsher(p string) (*EdgeUsher, error) {
 		return nil, fmt.Errorf("cannot find EdgeUsher in %s", p)
 	}
 
-	log.Printf("EdgeUsher ready!")
+	log.Println("EdgeUsher ready!")
 
 	return &EdgeUsher{
 		execPath:  path.Join(p, EdgeUsherExec),

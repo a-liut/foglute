@@ -145,7 +145,7 @@ func StartHTTPInterface(manager *deployment.Manager, quit chan struct{}) {
 		//shutdown the server
 		err := s.Shutdown(ctx)
 		if err != nil {
-			log.Printf("Shutdown request error: %v", err)
+			log.Printf("Shutdown request error: %v\n", err)
 		}
 	}()
 

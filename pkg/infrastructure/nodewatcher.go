@@ -29,7 +29,7 @@ type NodeWatcher struct {
 // Handles the addition of a node
 func (nw *NodeWatcher) addFunc(node interface{}) {
 	n := node.(*apiv1.Node)
-	log.Printf("A node has been added: %s", n.Name)
+	log.Printf("A node has been added: %s\n", n.Name)
 
 	nw.nodelistMutex.Lock()
 	nw.nodelist = append(nw.nodelist, *n)
@@ -39,7 +39,7 @@ func (nw *NodeWatcher) addFunc(node interface{}) {
 // Handles the deletion of a node
 func (nw *NodeWatcher) deleteFunc(node interface{}) {
 	removedNode := node.(*apiv1.Node)
-	log.Printf("A node has been removed: %s", removedNode.Name)
+	log.Printf("A node has been removed: %s\n", removedNode.Name)
 
 	nw.nodelistMutex.Lock()
 	defer nw.nodelistMutex.Unlock()
