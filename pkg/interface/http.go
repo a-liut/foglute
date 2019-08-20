@@ -62,7 +62,7 @@ func applicationsHandler(manager *deployment.Manager, w http.ResponseWriter, r *
 		// Add the application to the manager
 		err = manager.AddApplication(app)
 		if err != nil {
-			handleError(w, http.StatusInternalServerError, "Cannot add application %s", app.Name)
+			handleError(w, http.StatusInternalServerError, "Cannot add application %s: %s", app.Name, err)
 			return
 		}
 
