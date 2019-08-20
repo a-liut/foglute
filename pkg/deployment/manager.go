@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -179,6 +180,8 @@ func (manager *Manager) init() error {
 func (manager *Manager) redeployAll() []error {
 	log.Printf("Redeploying deployments (%d) for new node configuration", len(manager.deployments))
 
+	startTime := time.Now()
+
 	var errs []error
 
 	// recompute all deployments
@@ -206,6 +209,9 @@ func (manager *Manager) redeployAll() []error {
 		log.Printf("waiting for redeployment finishes...")
 		wg.Wait()
 
+		elapsed := time.Since(startTime)
+		log.Printf("Redeploy took %v\n", elapsed)
+
 		close(errors)
 	}()
 
@@ -223,6 +229,8 @@ func (manager *Manager) redeployAll() []error {
 // It gets the current state of the Kubernetes cluster and produce a feasible placement for the application
 func (manager *Manager) deploy(application *model.Application) (*model.Placement, error) {
 	log.Printf("Call to deploy with app: %s (%s)\n", application.ID, application.Name)
+
+	startTime := time.Now()
 
 	currentInfrastructure, err := manager.getInfrastructure()
 	if err != nil {
@@ -251,6 +259,9 @@ func (manager *Manager) deploy(application *model.Application) (*model.Placement
 	if err != nil {
 		return nil, err
 	}
+
+	elapsed := time.Since(startTime)
+	log.Printf("Deploy took %v\n", elapsed)
 
 	log.Printf("Application %s successfully deployed\n", application.ID)
 
@@ -363,6 +374,8 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 func (manager *Manager) undeploy(application *model.Application) error {
 	log.Printf("Call to undeploy with app: %s (%s)\n", application.ID, application.Name)
 
+	startTime := time.Now()
+
 	deploymentsClient := manager.clientset.AppsV1().Deployments(apiv1.NamespaceDefault)
 
 	for _, s := range application.Services {
@@ -378,6 +391,9 @@ func (manager *Manager) undeploy(application *model.Application) error {
 
 		log.Printf("Deleted deployment %q.\n", s.Id)
 	}
+
+	elapsed := time.Since(startTime)
+	log.Printf("Undeploy took %v\n", elapsed)
 
 	return nil
 }
