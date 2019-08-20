@@ -457,19 +457,19 @@ func convertNode(node apiv1.Node) model.Node {
 	}
 
 	n.Profiles[0].Probability = 1
-	if iot_caps, exists := node.Labels["iot_caps"]; exists {
-		n.Profiles[0].IoTCaps = strings.Split(iot_caps, ",")
+	if iotCaps, exists := node.Labels["iot_caps"]; exists {
+		n.Profiles[0].IoTCaps = strings.Split(iotCaps, ",")
 	} else {
 		n.Profiles[0].IoTCaps = make([]string, 0)
 	}
-	if sec_caps, exists := node.Labels["sec_caps"]; exists {
-		n.Profiles[0].SecCaps = strings.Split(sec_caps, ",")
+	if secCaps, exists := node.Labels["sec_caps"]; exists {
+		n.Profiles[0].SecCaps = strings.Split(secCaps, ",")
 	} else {
 		n.Profiles[0].SecCaps = make([]string, 0)
 	}
 
-	if hwcaps, err := strconv.ParseInt(node.Labels["hw_caps"], 10, 32); err == nil {
-		n.Profiles[0].HWCaps = int(hwcaps)
+	if hwCaps, err := strconv.ParseInt(node.Labels["hw_caps"], 10, 32); err == nil {
+		n.Profiles[0].HWCaps = int(hwCaps)
 	} else {
 		// Default value
 		n.Profiles[0].HWCaps = model.NodeDefaultHwCaps
