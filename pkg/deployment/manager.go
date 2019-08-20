@@ -80,7 +80,7 @@ func (manager *Manager) HasApplication(application *model.Application) bool {
 // Adds an application to the manager.
 // If the application is already deployed, the application is redeployed, otherwise
 // it is deployed and added to the manager
-func (manager *Manager) AddApplication(application *model.Application) error {
+func (manager *Manager) AddApplication(application *model.Application) []error {
 	if manager.HasApplication(application) {
 		placement, err := manager.redeploy(application)
 		if err != nil {
@@ -116,9 +116,9 @@ func (manager *Manager) AddApplication(application *model.Application) error {
 
 // Deletes an application from the manager.
 // If the application is deployed, then it undeploy the application from the cluster
-func (manager *Manager) DeleteApplication(application *model.Application) error {
+func (manager *Manager) DeleteApplication(application *model.Application) []error {
 	if !manager.HasApplication(application) {
-		return fmt.Errorf("cannot find application %s", application.Name)
+		return []error{fmt.Errorf("cannot find application %s", application.Name)}
 	}
 
 	err := manager.undeploy(application)
@@ -194,13 +194,15 @@ func (manager *Manager) redeployAll() []error {
 
 		go func() {
 			defer wg.Done()
-			placement, err := manager.redeploy(dep.Application)
+			placement, deployErrors := manager.redeploy(dep.Application)
 
 			// Update application's placement
 			dep.Placement = placement
 
-			if err != nil {
-				errors <- err
+			if deployErrors != nil {
+				for _, err := range deployErrors {
+					errors <- err
+				}
 			}
 		}()
 	}
@@ -228,14 +230,14 @@ func (manager *Manager) redeployAll() []error {
 
 // Performs the deploy of an application
 // It gets the current state of the Kubernetes cluster and produce a feasible placement for the application
-func (manager *Manager) deploy(application *model.Application) (*model.Placement, error) {
+func (manager *Manager) deploy(application *model.Application) (*model.Placement, []error) {
 	log.Printf("Call to deploy with app: %s (%s)\n", application.ID, application.Name)
 
 	startTime := time.Now()
 
 	currentInfrastructure, err := manager.getInfrastructure()
 	if err != nil {
-		return nil, err
+		return nil, []error{err}
 	}
 
 	log.Printf("current Infrastructure: (%d) %s\n", len(currentInfrastructure.Nodes), currentInfrastructure)
@@ -244,27 +246,28 @@ func (manager *Manager) deploy(application *model.Application) (*model.Placement
 
 	placements, err := (*manager.analyzer).GetDeployment(Normal, application, currentInfrastructure)
 	if err != nil {
-		return nil, err
+		return nil, []error{err}
 	}
 
 	log.Printf("Possible placements: %s\n", placements)
 
 	best, err := pickBestPlacement(placements)
 	if err != nil {
-		return nil, fmt.Errorf("cannot devise a placement for app %s: %s", application.ID, err)
+		return nil, []error{fmt.Errorf("cannot devise a placement for app %s: %s", application.ID, err)}
 	}
 
 	log.Printf("Best deployment: %s\n", best)
 
-	err = manager.performPlacement(application, best)
-	if err != nil {
-		return nil, err
-	}
+	deployErrors := manager.performPlacement(application, best)
 
 	elapsed := time.Since(startTime)
 	log.Printf("Deploy took %v\n", elapsed)
 
 	log.Printf("Application %s successfully deployed\n", application.ID)
+
+	if len(deployErrors) > 0 {
+		return best, deployErrors
+	}
 
 	return best, nil
 }
@@ -277,36 +280,45 @@ func pickBestPlacement(placements []model.Placement) (*model.Placement, error) {
 	return &placements[0], nil
 }
 
-func (manager *Manager) performPlacement(application *model.Application, placement *model.Placement) error {
+func (manager *Manager) performPlacement(application *model.Application, placement *model.Placement) []error {
 	log.Println("Performing placement")
+
+	errors := make([]error, 0)
+
+	deploymentsClient := manager.clientset.AppsV1().Deployments(apiv1.NamespaceDefault)
+	servicesClient := manager.clientset.CoreV1().Services(apiv1.NamespaceDefault)
+
 	for _, assignment := range placement.Assignments {
 		deployment, services, err := manager.createDeploymentFromAssignment(application, &assignment)
 		if err != nil {
-			// TODO: implement a rollback procedure!
-			return err
+			log.Printf("Cannot get Deployment and Services for application %s and assignment (%s, %s): %s\n", application.ID, assignment.ServiceID, assignment.NodeID, err)
+			errors = append(errors, err)
+			continue
 		}
 
-		deploymentsClient := manager.clientset.AppsV1().Deployments(apiv1.NamespaceDefault)
-
-		result, err := deploymentsClient.Create(deployment)
+		_, err = deploymentsClient.Create(deployment)
 		if err != nil {
-			// TODO: implement a rollback procedure!
-			return err
+			log.Printf("Cannot create a Deployment for application %s and assignment (%s, %s): %s\n", application.ID, assignment.ServiceID, assignment.NodeID, err)
+			errors = append(errors, err)
+			continue
+		} else {
+			log.Printf("Deployment %s created.\n", assignment.ServiceID)
 		}
-
-		servicesClient := manager.clientset.CoreV1().Services(apiv1.NamespaceDefault)
 
 		for _, s := range services {
 			serviceResult, err := servicesClient.Create(s)
 			if err != nil {
-				// TODO: implement a rollback procedure!
-				return err
+				log.Printf("Cannot create a Service for app service %s: %s\n", assignment.ServiceID, err)
+				errors = append(errors, err)
+				continue
+			} else {
+				log.Printf("Service %s created. Ports: %v\n", s.Name, serviceResult.Spec.Ports)
 			}
-
-			log.Printf("Created Service for %s on ports %v\n", result.GetObjectMeta().GetName(), serviceResult.Spec.Ports)
 		}
+	}
 
-		log.Printf("Created Deployment %q.\n", result.GetObjectMeta().GetName())
+	if len(errors) > 0 {
+		return errors
 	}
 
 	return nil
@@ -344,10 +356,12 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 			ports[i].HostPort = int32(port.HostPort)
 
 			if port.Expose > 0 {
+				serviceName := port.Name
+
 				// Create a service for it
 				s := &apiv1.Service{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: fmt.Sprintf("%s-%s", application.ID, assignment.ServiceID),
+						Name: serviceName,
 						Labels: map[string]string{
 							"app":      application.Name, // TODO: Use a unique ID
 							"service":  assignment.ServiceID,
@@ -424,7 +438,7 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 }
 
 // Deletes an application from the Kubernetes cluster
-func (manager *Manager) undeploy(application *model.Application) error {
+func (manager *Manager) undeploy(application *model.Application) []error {
 	log.Printf("Call to undeploy with app: %s (%s)\n", application.ID, application.Name)
 
 	startTime := time.Now()
@@ -432,47 +446,56 @@ func (manager *Manager) undeploy(application *model.Application) error {
 	deploymentsClient := manager.clientset.AppsV1().Deployments(apiv1.NamespaceDefault)
 	serviceClient := manager.clientset.CoreV1().Services(apiv1.NamespaceDefault)
 
+	errors := make([]error, 0)
+
 	for _, s := range application.Services {
 		log.Printf("Undeploying service %s", s.Id)
 
 		deploymentName := fmt.Sprintf("%s-%s", application.ID, s.Id)
 		deletePolicy := metav1.DeletePropagationForeground
-		if err := deploymentsClient.Delete(deploymentName, &metav1.DeleteOptions{
+		err := deploymentsClient.Delete(deploymentName, &metav1.DeleteOptions{
 			PropagationPolicy: &deletePolicy,
-		}); err != nil {
-			// TODO: implement a rollback procedure!
-			return err
+		})
+
+		if err != nil {
+			log.Printf("Cannot delete Deployment %s: %s", deploymentName, err)
+			errors = append(errors, err)
+		} else {
+			log.Printf("Deployment %s deleted.\n", s.Id)
 		}
 
 		for _, port := range s.Image.Ports {
 			if port.Expose > 0 {
 				// Remove the associated service
-				serviceName := fmt.Sprintf("%s-%s", application.ID, s.Id)
+				serviceName := port.Name
+
 				err := serviceClient.Delete(serviceName, &metav1.DeleteOptions{
 					PropagationPolicy: &deletePolicy,
 				})
 
 				if err != nil {
-					// TODO: implement a rollback procedure!
-					return err
+					log.Printf("Cannot undeploy Service %s: %s", serviceName, err)
+					errors = append(errors, err)
+				} else {
+					log.Printf("Service %s deleted.\n", serviceName)
 				}
-
-				log.Printf("Deleted Service %q.\n", serviceName)
 			}
 		}
-
-		log.Printf("Deleted Deployment %q.\n", s.Id)
 	}
 
 	elapsed := time.Since(startTime)
 	log.Printf("Undeploy took %v\n", elapsed)
+
+	if len(errors) > 0 {
+		return errors
+	}
 
 	return nil
 }
 
 // Performs the redeploy of an application
 // It first undeploy the application and then deploy it again.
-func (manager *Manager) redeploy(application *model.Application) (*model.Placement, error) {
+func (manager *Manager) redeploy(application *model.Application) (*model.Placement, []error) {
 	log.Printf("Redeploying application %s...", application.Name)
 
 	if err := manager.undeploy(application); err != nil {

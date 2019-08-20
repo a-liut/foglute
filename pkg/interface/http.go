@@ -60,9 +60,9 @@ func applicationsHandler(manager *deployment.Manager, w http.ResponseWriter, r *
 		}
 
 		// Add the application to the manager
-		err = manager.AddApplication(app)
-		if err != nil {
-			handleError(w, http.StatusInternalServerError, "Cannot add application %s: %s", app.Name, err)
+		addErrors := manager.AddApplication(app)
+		if addErrors != nil {
+			handleError(w, http.StatusInternalServerError, "Cannot add application %s: %s", app.Name, addErrors)
 			return
 		}
 
@@ -100,19 +100,19 @@ func applicationHandler(manager *deployment.Manager, w http.ResponseWriter, r *h
 		}
 	case http.MethodDelete:
 		// Remove the application from the manager
-		err := manager.DeleteApplication(deploy.Application)
-		if err != nil {
+		deleteErrors := manager.DeleteApplication(deploy.Application)
+		if deleteErrors != nil {
 			log.Println()
-			handleError(w, http.StatusNotFound, "Cannot delete application %s: %s", deploy.Application.Name, err)
+			handleError(w, http.StatusNotFound, "Cannot delete application %s: %s", deploy.Application.Name, deleteErrors)
 			return
 		}
 
 		// Send a successful response
 		r := newResponse("Application deleted successfully", "")
 		j, _ := json.Marshal(r)
-		_, err = fmt.Fprintln(w, string(j))
-		if err != nil {
-			log.Println(err)
+		_, sendErr := fmt.Fprintln(w, string(j))
+		if sendErr != nil {
+			log.Println(sendErr)
 		}
 	}
 }

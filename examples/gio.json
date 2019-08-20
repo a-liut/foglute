@@ -9,6 +9,7 @@
         "local": true,
         "ports": [
           {
+            "name": "gio-api-gateway-endpoint",
             "host_port": 5000,
             "container_port": 8080,
             "expose": 30000
@@ -27,6 +28,7 @@
         "local": true,
         "ports": [
           {
+            "name": "gio-device-ms-endpoint",
             "host_port": 5001,
             "container_port": 8080,
             "expose": 30001
