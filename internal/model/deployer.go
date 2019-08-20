@@ -34,7 +34,7 @@ type Image struct {
 }
 
 type Port struct {
-	HostPort      int `json:"host_port"`
+	//HostPort      int `json:"host_port"`
 	ContainerPort int `json:"container_port"`
 }
 

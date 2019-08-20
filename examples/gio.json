@@ -1,0 +1,73 @@
+{
+  "id": "gio",
+  "name": "gio",
+  "services": [
+    {
+      "id": "api-gateway",
+      "image": {
+        "name": "gio-api-gateway-ms:latest",
+        "local": true,
+        "ports": [
+          {
+            "container_port": 8080,
+            "expose": 5002
+          }
+        ]
+      },
+      "t_proc": 2,
+      "hw_reqs": 1,
+      "iot_reqs": [],
+      "sec_reqs": []
+    },
+    {
+      "id": "device-ms",
+      "image": {
+        "name": "gio-device-ms:latest",
+        "local": true,
+        "ports": [
+          {
+            "container_port": 8080,
+            "expose": 5001
+          }
+        ]
+      },
+      "t_proc": 2,
+      "hw_reqs": 1,
+      "iot_reqs": [],
+      "sec_reqs": []
+    },
+    {
+      "id": "fog-node",
+      "image": {
+        "name": "gio-fog-node-go:latest",
+        "local": true
+      },
+      "t_proc": 2,
+      "hw_reqs": 1,
+      "iot_reqs": [],
+      "sec_reqs": []
+    }
+  ],
+  "flows": [
+    {
+      "src": "api-gateway",
+      "dst": "device-ms",
+      "bandwidth": 1
+    },
+    {
+      "src": "device-ms",
+      "dst": "fog-node",
+      "bandwidth": 1
+    }
+  ],
+  "max_latency": [
+    {
+      "chain": [
+        "api-gateway",
+        "device-ms",
+        "fog-node"
+      ],
+      "value": 99999
+    }
+  ]
+}

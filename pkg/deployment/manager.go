@@ -326,7 +326,8 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 			ports[i].Name = "http"
 			ports[i].Protocol = apiv1.ProtocolTCP
 			ports[i].ContainerPort = int32(port.ContainerPort)
-			ports[i].HostPort = int32(port.HostPort)
+			//ports[i].HostPort = int32(port.HostPort)
+
 		}
 	}
 
@@ -355,7 +356,7 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 					},
 				},
 				Spec: apiv1.PodSpec{
-					NodeName: assignment.NodeID, // Deploy the pod to the right node only
+					//NodeName: assignment.NodeID, // Deploy the pod to the right node only
 					Containers: []apiv1.Container{
 						{
 							Name:            service.Id,
