@@ -258,7 +258,7 @@ func (manager *Manager) deploy(application *model.Application) (*model.Placement
 
 	log.Printf("Best deployment: %s\n", best)
 
-	deployErrors := manager.performPlacement(application, best)
+	deployErrors := manager.performPlacement(application, currentInfrastructure, best)
 
 	elapsed := time.Since(startTime)
 	log.Printf("Deploy took %v\n", elapsed)
@@ -282,7 +282,7 @@ func pickBestPlacement(placements []model.Placement) (*model.Placement, error) {
 }
 
 // Performs proper operations in order to apply the placement to the Kubernetes cluster
-func (manager *Manager) performPlacement(application *model.Application, placement *model.Placement) []error {
+func (manager *Manager) performPlacement(application *model.Application, infrastructure *model.Infrastructure, placement *model.Placement) []error {
 	log.Println("Performing placement")
 
 	errors := make([]error, 0)
@@ -291,7 +291,7 @@ func (manager *Manager) performPlacement(application *model.Application, placeme
 	servicesClient := manager.clientset.CoreV1().Services(apiv1.NamespaceDefault)
 
 	for _, assignment := range placement.Assignments {
-		deployment, services, err := manager.createDeploymentFromAssignment(application, &assignment)
+		deployment, services, err := manager.createDeploymentFromAssignment(application, infrastructure, &assignment)
 		if err != nil {
 			log.Printf("Cannot get Deployment and Services for application %s and assignment (%s, %s): %s\n", application.ID, assignment.ServiceID, assignment.NodeID, err)
 			errors = append(errors, err)
@@ -327,7 +327,7 @@ func (manager *Manager) performPlacement(application *model.Application, placeme
 }
 
 // Returns Kubernetes Deployments and Services for the given Application according to a given Assignment
-func (manager *Manager) createDeploymentFromAssignment(application *model.Application, assignment *model.Assignment) (*appsv1.Deployment, []*apiv1.Service, error) {
+func (manager *Manager) createDeploymentFromAssignment(application *model.Application, infrastructure *model.Infrastructure, assignment *model.Assignment) (*appsv1.Deployment, []*apiv1.Service, error) {
 	var service *model.Service
 	for _, s := range application.Services {
 		if s.Id == assignment.ServiceID {
@@ -340,12 +340,30 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 		return nil, nil, fmt.Errorf("service %s not found in application %s", assignment.ServiceID, application.ID)
 	}
 
+	var node *model.Node
+	for _, n := range infrastructure.Nodes {
+		if n.ID == assignment.NodeID {
+			node = &n
+		}
+	}
+
+	if node == nil {
+		return nil, nil, fmt.Errorf("node %s not found in the infrastructure", assignment.NodeID)
+	}
+
 	services := make([]*apiv1.Service, 0)
 
 	// Image pull policy
 	pullPolicy := apiv1.PullAlways
 	if service.Image.Local {
 		pullPolicy = apiv1.PullNever
+	}
+
+	tt := true
+	secContext := &apiv1.SecurityContext{}
+	// Set privileged mode
+	if service.Image.Privileged {
+		secContext.Privileged = &tt
 	}
 
 	var ports []apiv1.ContainerPort
@@ -425,13 +443,14 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 					},
 				},
 				Spec: apiv1.PodSpec{
-					//NodeName: assignment.NodeID, // Deploy the pod to the right node only
+					NodeName: node.Name, // Deploy the pod to the right node only
 					Containers: []apiv1.Container{
 						{
 							Name:            service.Id,
 							Image:           service.Image.Name,
 							ImagePullPolicy: pullPolicy,
 							Ports:           ports,
+							SecurityContext: secContext,
 						},
 					}}},
 		},

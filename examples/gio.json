@@ -44,7 +44,8 @@
       "id": "fog-node",
       "image": {
         "name": "gio-fog-node-go:latest",
-        "local": true
+        "local": true,
+        "privileged": true
       },
       "t_proc": 2,
       "hw_reqs": 1,
