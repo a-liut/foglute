@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/pointer"
 	"log"
+	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
@@ -249,14 +250,14 @@ func (manager *Manager) deploy(application *model.Application) (*model.Placement
 		return nil, []error{err}
 	}
 
-	log.Printf("Possible placements: %s\n", placements)
+	log.Printf("Devised %d possible placements\n", len(placements))
 
 	best, err := pickBestPlacement(placements)
 	if err != nil {
 		return nil, []error{fmt.Errorf("cannot devise a placement for app %s: %s", application.ID, err)}
 	}
 
-	log.Printf("Best deployment: %s\n", best)
+	log.Printf("Best placement: %s\n", best)
 
 	deployErrors := manager.performPlacement(application, currentInfrastructure, best)
 
@@ -277,8 +278,25 @@ func pickBestPlacement(placements []model.Placement) (*model.Placement, error) {
 	if len(placements) == 0 {
 		return nil, fmt.Errorf("no feasible deployments")
 	}
-	// TODO: choose the best deployment
-	return &placements[0], nil
+
+	// Scan placements and pick the best ones
+	list := make([]*model.Placement, 0)
+	bestProb := 0.0
+	for _, p := range placements {
+		if bestProb < p.Probability {
+			// Clear the list
+			list = list[:0]
+
+			list = append(list, &p)
+		} else if bestProb == p.Probability {
+			list = append(list, &p)
+		}
+	}
+
+	// Pick a random placement
+	idx := rand.Intn(len(list))
+
+	return list[idx], nil
 }
 
 // Performs proper operations in order to apply the placement to the Kubernetes cluster
