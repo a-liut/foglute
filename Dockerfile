@@ -12,8 +12,8 @@ RUN go mod download
 
 # Add EdgeUsher
 RUN mkdir /edgeusher \
-    && wget https://raw.githubusercontent.com/di-unipi-socc/EdgeUsher/master/edgeusher.pl -P /edgeusher \
-    && wget https://raw.githubusercontent.com/di-unipi-socc/EdgeUsher/master/hedgeusher.pl -P /edgeusher
+    && wget https://raw.githubusercontent.com/a-liut/EdgeUsher/master/edgeusher.pl -P /edgeusher \
+    && wget https://raw.githubusercontent.com/a-liut/EdgeUsher/master/hedgeusher.pl -P /edgeusher
 
 COPY . .
 
