@@ -1,9 +1,9 @@
 BIN_FOLDER = bin
-BIN_NAME = fogluted
+BIN_NAME = foglute
 
 main:
 	mkdir -p $(BIN_FOLDER)
-	go build -o $(BIN_FOLDER)/$(BIN_NAME) cmd/fogluted/main.go
+	go build -o $(BIN_FOLDER)/$(BIN_NAME) cmd/foglute/main.go
 
 clean:
 	@rm -rf $(BIN_FOLDER)

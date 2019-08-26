@@ -1,5 +1,5 @@
 /*
-Fogluted
+FogLute
 Microservice Fog Orchestration platform.
 
 */
@@ -23,7 +23,7 @@ import (
 )
 
 func main() {
-	log.Println("Starting fogluted")
+	log.Println("Starting foglute")
 
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -81,7 +81,7 @@ func main() {
 	close(quit)
 	wg.Wait()
 
-	log.Println("fogluted ends")
+	log.Println("foglute ends")
 }
 
 // Returns the home directory

@@ -1,11 +1,11 @@
-# fogluted
+# foglute
 
-`fogluted` is a daemon tool that manges applications over a Kubernetes cluster.
+`foglute` is a daemon tool that manges applications over a Kubernetes cluster.
 For the application it manager, it decides the best placement possible and deploy them consequently.
 
 # Run
 
-`fogluted` is developed as a Go module. Run `go build` to produce the executable.
+`foglute` is developed as a Go module. Run `go build` to produce the executable.
 
 Make sure to have `edgeusher`, `problog` and `kubectl` installed
 
@@ -13,15 +13,15 @@ Make sure to have `edgeusher`, `problog` and `kubectl` installed
 
 ## How it works
 
-When a new application is provided to `fogluted`, it gets the available cluster nodes.
+When a new application is provided to `foglute`, it gets the available cluster nodes.
 Then it performs an analysis of both application and infrastructure to devise the best QoS-aware placement of services.
 The analysis is currently performed by EdgeUsher tool (https://github.com/di-unipi-socc/EdgeUsher).
 The analysis produces a set of feasible placements for application services. The best placement will be deployed on the cluster
-and maintained by `fogluted`. 
+and maintained by `foglute`. 
 
-## How to use fogluted
+## How to use foglute
 
-`fogluted` exposes a REST interface:
+`foglute` exposes a REST interface:
 
 | Path               | Method | Description                                        |
 |--------------------|--------|----------------------------------------------------|

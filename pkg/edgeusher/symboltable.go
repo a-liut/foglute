@@ -1,5 +1,5 @@
 /*
-Fogluted
+FogLute
 Microservice Fog Orchestration platform.
 
 */

@@ -1,5 +1,5 @@
 /*
-Fogluted
+FogLute
 Microservice Fog Orchestration platform.
 
 */
@@ -402,9 +402,9 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 					ObjectMeta: metav1.ObjectMeta{
 						Name: serviceName,
 						Labels: map[string]string{
-							"app":      application.Name, // TODO: Use a unique ID
-							"service":  assignment.ServiceID,
-							"fogluted": "fogluted",
+							"app":     application.Name, // TODO: Use a unique ID
+							"service": assignment.ServiceID,
+							"foglute": "foglute",
 						},
 					},
 					Spec: apiv1.ServiceSpec{
@@ -421,9 +421,9 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 							},
 						},
 						Selector: map[string]string{
-							"app":      application.Name, // TODO: Use a unique ID
-							"service":  assignment.ServiceID,
-							"fogluted": "fogluted",
+							"app":     application.Name, // TODO: Use a unique ID
+							"service": assignment.ServiceID,
+							"foglute": "foglute",
 						},
 						Type: apiv1.ServiceTypeNodePort,
 					},
@@ -440,24 +440,24 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 		ObjectMeta: metav1.ObjectMeta{
 			Name: deploymentName,
 			Labels: map[string]string{
-				"app":      application.Name, // TODO: Use a unique ID
-				"service":  assignment.ServiceID,
-				"fogluted": "fogluted",
+				"app":     application.Name, // TODO: Use a unique ID
+				"service": assignment.ServiceID,
+				"foglute": "foglute",
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointer.Int32Ptr(1),
 			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{
-				"app":      application.Name, // TODO: Use a unique ID
-				"service":  assignment.ServiceID,
-				"fogluted": "fogluted",
+				"app":     application.Name, // TODO: Use a unique ID
+				"service": assignment.ServiceID,
+				"foglute": "foglute",
 			}},
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app":      application.Name, // TODO: Use a unique ID
-						"service":  assignment.ServiceID,
-						"fogluted": "fogluted",
+						"app":     application.Name, // TODO: Use a unique ID
+						"service": assignment.ServiceID,
+						"foglute": "foglute",
 					},
 				},
 				Spec: apiv1.PodSpec{

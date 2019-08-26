@@ -31,6 +31,8 @@ func (nw *NodeWatcher) addFunc(node interface{}) {
 	n := node.(*apiv1.Node)
 	log.Printf("A node has been added: %s\n", n.Name)
 
+	// TODO: Check the status of the node! Try to turn on node-1 after master is ready, to see if this callback is triggered again!
+
 	nw.nodelistMutex.Lock()
 	nw.nodelist = append(nw.nodelist, *n)
 	nw.nodelistMutex.Unlock()
