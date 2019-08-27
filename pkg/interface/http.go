@@ -32,13 +32,14 @@ func newResponse(message string, errorMessage string) *Response {
 
 // Handles error responses
 func handleError(w http.ResponseWriter, status int, message string, args ...interface{}) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	r := newResponse("", fmt.Sprintf(message, args))
 	j, _ := json.Marshal(r)
 	http.Error(w, string(j), status)
 }
 
 func applicationsHandler(manager *deployment.Manager, w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
 	switch r.Method {
 	case http.MethodGet:
@@ -80,7 +81,7 @@ func applicationsHandler(manager *deployment.Manager, w http.ResponseWriter, r *
 }
 
 func applicationHandler(manager *deployment.Manager, w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	vars := mux.Vars(r)
 	id := vars["id"]
 
