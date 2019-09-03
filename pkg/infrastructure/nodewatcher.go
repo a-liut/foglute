@@ -33,6 +33,15 @@ func (nw *NodeWatcher) addFunc(node interface{}) {
 
 	// TODO: Check the status of the node! Try to turn on node-1 after master is ready, to see if this callback is triggered again!
 
+	// check if it can be used for task scheduling
+	for _, t := range n.Spec.Taints {
+		if t.Effect == apiv1.TaintEffectNoSchedule {
+			// Skip no schedule node
+			log.Printf("Cannot use %s for scheduling tasks\n", n.Name)
+			return
+		}
+	}
+
 	nw.nodelistMutex.Lock()
 	nw.nodelist = append(nw.nodelist, *n)
 	nw.nodelistMutex.Unlock()
