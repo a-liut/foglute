@@ -32,10 +32,11 @@ type Service struct {
 
 // An Image is a description of a Docker image to be used by a Service
 type Image struct {
-	Name       string `json:"name"`
-	Local      bool   `json:"local"`
-	Ports      []Port `json:"ports"`
-	Privileged bool   `json:"privileged"`
+	Name       string            `json:"name"`
+	Local      bool              `json:"local"`
+	Env        map[string]string `json:"env"`
+	Ports      []Port            `json:"ports"`
+	Privileged bool              `json:"privileged"`
 }
 
 type Port struct {

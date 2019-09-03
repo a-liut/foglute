@@ -385,6 +385,14 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 		secContext.Privileged = &tt
 	}
 
+	// Checking env variables
+	env := make([]apiv1.EnvVar, len(service.Image.Env))
+	iEnv := 0
+	for varName, varValue := range service.Image.Env {
+		env[iEnv].Name = varName
+		env[iEnv].Value = varValue
+	}
+
 	var ports []apiv1.ContainerPort
 	if len(service.Image.Ports) > 0 {
 		ports = make([]apiv1.ContainerPort, len(service.Image.Ports))
@@ -465,6 +473,7 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 							ImagePullPolicy: pullPolicy,
 							Ports:           ports,
 							SecurityContext: secContext,
+							Env:             env,
 						},
 					}}},
 		},
