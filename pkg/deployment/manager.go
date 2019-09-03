@@ -485,14 +485,14 @@ func (manager *Manager) undeploy(application *model.Application) []error {
 	errors := make([]error, 0)
 
 	for _, s := range application.Services {
-		log.Printf("Undeploying service %s\n", s.Id)
-
 		deploymentName := fmt.Sprintf("%s-%s", application.ID, s.Id)
 		deletePolicy := metav1.DeletePropagationForeground
+
+		log.Printf("Undeploying Deployment %s (%s)...\n", s.Id, deploymentName)
+
 		err := deploymentsClient.Delete(deploymentName, &metav1.DeleteOptions{
 			PropagationPolicy: &deletePolicy,
 		})
-
 		if err != nil {
 			log.Printf("Cannot delete Deployment %s: %s\n", deploymentName, err)
 			errors = append(errors, err)
@@ -508,6 +508,8 @@ func (manager *Manager) undeploy(application *model.Application) []error {
 				err := serviceClient.Delete(serviceName, &metav1.DeleteOptions{
 					PropagationPolicy: &deletePolicy,
 				})
+
+				log.Printf("Undeploying Service %s...\n", serviceName)
 
 				if err != nil {
 					log.Printf("Cannot undeploy Service %s: %s\n", serviceName, err)
