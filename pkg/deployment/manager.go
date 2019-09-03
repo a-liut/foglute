@@ -8,6 +8,7 @@ package deployment
 import (
 	"fmt"
 	"foglute/internal/model"
+	"foglute/pkg/config"
 	"foglute/pkg/infrastructure"
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
@@ -402,9 +403,8 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 					ObjectMeta: metav1.ObjectMeta{
 						Name: serviceName,
 						Labels: map[string]string{
-							"app":     application.Name, // TODO: Use a unique ID
-							"service": assignment.ServiceID,
-							"foglute": "foglute",
+							fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
+							fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
 						},
 					},
 					Spec: apiv1.ServiceSpec{
@@ -421,9 +421,8 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 							},
 						},
 						Selector: map[string]string{
-							"app":     application.Name, // TODO: Use a unique ID
-							"service": assignment.ServiceID,
-							"foglute": "foglute",
+							fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
+							fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
 						},
 						Type: apiv1.ServiceTypeNodePort,
 					},
@@ -440,24 +439,21 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 		ObjectMeta: metav1.ObjectMeta{
 			Name: deploymentName,
 			Labels: map[string]string{
-				"app":     application.Name, // TODO: Use a unique ID
-				"service": assignment.ServiceID,
-				"foglute": "foglute",
+				fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
+				fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointer.Int32Ptr(1),
 			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{
-				"app":     application.Name, // TODO: Use a unique ID
-				"service": assignment.ServiceID,
-				"foglute": "foglute",
+				fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
+				fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
 			}},
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app":     application.Name, // TODO: Use a unique ID
-						"service": assignment.ServiceID,
-						"foglute": "foglute",
+						fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
+						fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
 					},
 				},
 				Spec: apiv1.PodSpec{
@@ -613,29 +609,30 @@ func convertNode(node apiv1.Node) model.Node {
 			Latitude:  model.NodeDefaultLatitude,
 		},
 		Profiles: make([]model.NodeProfile, 1),
+		Node:     &node,
 	}
 
-	if long, err := strconv.ParseInt(node.Labels["longitude"], 10, 32); err == nil {
+	if long, err := strconv.ParseInt(node.Labels[config.LongitudeLabel], 10, 32); err == nil {
 		n.Location.Longitude = int(long)
 	}
 
-	if lat, err := strconv.ParseInt(node.Labels["latitude"], 10, 32); err == nil {
+	if lat, err := strconv.ParseInt(node.Labels[config.LatitudeLabel], 10, 32); err == nil {
 		n.Location.Latitude = int(lat)
 	}
 
 	n.Profiles[0].Probability = 1
-	if iotCaps, exists := node.Labels["iot_caps"]; exists {
+	if iotCaps, exists := node.Labels[config.IotLabel]; exists {
 		n.Profiles[0].IoTCaps = strings.Split(iotCaps, ",")
 	} else {
 		n.Profiles[0].IoTCaps = make([]string, 0)
 	}
-	if secCaps, exists := node.Labels["sec_caps"]; exists {
+	if secCaps, exists := node.Labels[config.SecLabel]; exists {
 		n.Profiles[0].SecCaps = strings.Split(secCaps, ",")
 	} else {
 		n.Profiles[0].SecCaps = make([]string, 0)
 	}
 
-	if hwCaps, err := strconv.ParseInt(node.Labels["hw_caps"], 10, 32); err == nil {
+	if hwCaps, err := strconv.ParseInt(node.Labels[config.HwCapsLabel], 10, 32); err == nil {
 		n.Profiles[0].HWCaps = int(hwCaps)
 	} else {
 		// Default value

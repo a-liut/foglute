@@ -264,13 +264,13 @@ func StartHTTPInterface(manager *deployment.Manager, quit chan struct{}) {
 		applicationHandler(manager, writer, request)
 	}).Methods(http.MethodGet, http.MethodDelete)
 
-	r.HandleFunc("nodes/{nodeId}/iotcaps", func(writer http.ResponseWriter, request *http.Request) {
-		iotcapsHandler(manager, writer, request)
-	}).Methods(http.MethodGet, http.MethodPost)
-
-	r.HandleFunc("nodes/{nodeId}/iotcaps/{capName}", func(writer http.ResponseWriter, request *http.Request) {
-		iotcapHandler(manager, writer, request)
-	}).Methods(http.MethodDelete)
+	//r.HandleFunc("nodes/{nodeId}/iotcaps", func(writer http.ResponseWriter, request *http.Request) {
+	//	iotcapsHandler(manager, writer, request)
+	//}).Methods(http.MethodGet, http.MethodPost)
+	//
+	//r.HandleFunc("nodes/{nodeId}/iotcaps/{capName}", func(writer http.ResponseWriter, request *http.Request) {
+	//	iotcapHandler(manager, writer, request)
+	//}).Methods(http.MethodDelete)
 
 	s.Handler = r
 

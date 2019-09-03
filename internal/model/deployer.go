@@ -8,6 +8,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	v1 "k8s.io/api/core/v1"
 )
 
 // An Application is a set of services and relations between them.
@@ -81,6 +82,8 @@ type Node struct {
 	Address  string        `json:"address"`
 	Location Location      `json:"location"`
 	Profiles []NodeProfile `json:"profiles"`
+
+	Node *v1.Node `json:"-"`
 }
 
 func (n Node) String() string {
