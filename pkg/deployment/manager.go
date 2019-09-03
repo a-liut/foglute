@@ -100,9 +100,6 @@ func (manager *Manager) AddApplication(application *model.Application) []error {
 	} else {
 		// Deploy the new application
 		placement, err := manager.deploy(application)
-		if err != nil {
-			return err
-		}
 
 		d := &Deploy{
 			Application: application,
@@ -111,6 +108,11 @@ func (manager *Manager) AddApplication(application *model.Application) []error {
 
 		log.Printf("Adding %s to manager's active deployments\n", application.ID)
 		manager.deployments = append(manager.deployments, d)
+
+		// return errors if there are some
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -391,6 +393,7 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 	for varName, varValue := range service.Image.Env {
 		env[iEnv].Name = varName
 		env[iEnv].Value = varValue
+		iEnv++
 	}
 
 	var ports []apiv1.ContainerPort
