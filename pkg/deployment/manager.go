@@ -556,7 +556,7 @@ func (manager *Manager) redeploy(application *model.Application) (*model.Placeme
 
 // Returns the infrastructure based on Kubernetes cluster nodes
 func (manager *Manager) getInfrastructure() (*model.Infrastructure, error) {
-	nodes, err := manager.getNodes()
+	nodes, err := manager.GetNodes()
 	if err != nil {
 		return nil, err
 	}
@@ -586,7 +586,7 @@ func (manager *Manager) getInfrastructure() (*model.Infrastructure, error) {
 }
 
 // Get active Kubernetes cluster nodes
-func (manager *Manager) getNodes() ([]model.Node, error) {
+func (manager *Manager) GetNodes() ([]model.Node, error) {
 	nodes := manager.nodeWatcher.GetNodes()
 
 	return convertNodes(nodes), nil

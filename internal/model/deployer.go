@@ -5,7 +5,10 @@ Microservice Fog Orchestration platform.
 */
 package model
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // An Application is a set of services and relations between them.
 type Application struct {
@@ -83,6 +86,36 @@ type Node struct {
 func (n Node) String() string {
 	b, _ := json.Marshal(n)
 	return string(b)
+}
+
+func (n Node) AddIoTCap(name string) error {
+	if len(n.Profiles) > 0 {
+		return fmt.Errorf("no profile available")
+	}
+
+	n.Profiles[0].IoTCaps = append(n.Profiles[0].IoTCaps, name)
+
+	return nil
+}
+
+func (n Node) RemoveIoTCap(name string) error {
+	if len(n.Profiles) > 0 {
+		return fmt.Errorf("no profile available")
+	}
+
+	idx := -1
+	for i, c := range n.Profiles[0].IoTCaps {
+		if c == name {
+			idx = i
+			break
+		}
+	}
+
+	if idx > 0 {
+		n.Profiles[0].IoTCaps = append(n.Profiles[0].IoTCaps[:idx], n.Profiles[0].IoTCaps[idx+1:]...)
+	}
+
+	return nil
 }
 
 // A Location represent a geolocated place in the world

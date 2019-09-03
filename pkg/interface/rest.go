@@ -23,6 +23,10 @@ type Response struct {
 	Error   string `json:"error"`
 }
 
+type IotCapData struct {
+	Name string `json:"name"`
+}
+
 func newResponse(message string, errorMessage string) *Response {
 	return &Response{
 		Message: message,
@@ -103,7 +107,6 @@ func applicationHandler(manager *deployment.Manager, w http.ResponseWriter, r *h
 		// Remove the application from the manager
 		deleteErrors := manager.DeleteApplication(deploy.Application)
 		if deleteErrors != nil {
-			log.Println()
 			handleError(w, http.StatusNotFound, "Cannot delete application %s: %s", deploy.Application.Name, deleteErrors)
 			return
 		}
@@ -114,6 +117,133 @@ func applicationHandler(manager *deployment.Manager, w http.ResponseWriter, r *h
 		_, sendErr := fmt.Fprintln(w, string(j))
 		if sendErr != nil {
 			log.Println(sendErr)
+		}
+	}
+}
+
+func iotcapsHandler(manager *deployment.Manager, w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	vars := mux.Vars(r)
+	nodeId := vars["nodeId"]
+
+	nodes, err := manager.GetNodes()
+	if err != nil {
+		handleError(w, http.StatusInternalServerError, "cannot get nodes: %s", err)
+		return
+	}
+
+	var node *model.Node
+	for _, n := range nodes {
+		if nodeId == n.ID {
+			node = &n
+			break
+		}
+	}
+
+	if node == nil {
+		handleError(w, http.StatusNotFound, "node not found", err)
+		return
+	}
+
+	caps := node.Profiles[0].IoTCaps
+	if caps == nil {
+		handleError(w, http.StatusNotFound, "profile not found", err)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		log.Printf("Getting node %s tags\n", nodeId)
+
+		if err := json.NewEncoder(w).Encode(caps); err != nil {
+			log.Println(err)
+		}
+	case http.MethodPost:
+		var data IotCapData
+		err := json.NewDecoder(r.Body).Decode(&data)
+		if err != nil || data.Name == "" {
+			handleError(w, http.StatusBadRequest, "invalid data", err)
+			return
+		}
+
+		for _, c := range caps {
+			if c == data.Name {
+				// iot cap already set
+				log.Printf("iot cap \"%s\" already set", data.Name)
+
+				r := Response{
+					Message: "Done",
+				}
+
+				if err := json.NewEncoder(w).Encode(r); err != nil {
+					log.Println(err)
+				}
+
+				return
+			}
+		}
+
+		err = node.AddIoTCap(data.Name)
+		if err != nil {
+			handleError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		r := Response{
+			Message: "Done",
+		}
+
+		if err := json.NewEncoder(w).Encode(r); err != nil {
+			log.Println(err)
+		}
+	}
+}
+
+func iotcapHandler(manager *deployment.Manager, w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	vars := mux.Vars(r)
+	nodeId := vars["nodeId"]
+	capName := vars["capName"]
+
+	nodes, err := manager.GetNodes()
+	if err != nil {
+		handleError(w, http.StatusInternalServerError, "cannot get nodes: %s", err)
+		return
+	}
+
+	var node *model.Node
+	for _, n := range nodes {
+		if nodeId == n.ID {
+			node = &n
+			break
+		}
+	}
+
+	if node == nil {
+		handleError(w, http.StatusNotFound, "node not found", err)
+		return
+	}
+
+	caps := node.Profiles[0].IoTCaps
+	if caps == nil {
+		handleError(w, http.StatusNotFound, "profile not found", err)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodDelete:
+		err := node.RemoveIoTCap(capName)
+		if err != nil {
+			handleError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		r := Response{
+			Message: "Done",
+		}
+
+		if err := json.NewEncoder(w).Encode(r); err != nil {
+			log.Println(err)
 		}
 	}
 }
@@ -134,6 +264,14 @@ func StartHTTPInterface(manager *deployment.Manager, quit chan struct{}) {
 		applicationHandler(manager, writer, request)
 	}).Methods(http.MethodGet, http.MethodDelete)
 
+	r.HandleFunc("nodes/{nodeId}/iotcaps", func(writer http.ResponseWriter, request *http.Request) {
+		iotcapsHandler(manager, writer, request)
+	}).Methods(http.MethodGet, http.MethodPost)
+
+	r.HandleFunc("nodes/{nodeId}/iotcaps/{capName}", func(writer http.ResponseWriter, request *http.Request) {
+		iotcapHandler(manager, writer, request)
+	}).Methods(http.MethodDelete)
+
 	s.Handler = r
 
 	go func() {
@@ -150,7 +288,7 @@ func StartHTTPInterface(manager *deployment.Manager, quit chan struct{}) {
 		}
 	}()
 
-	log.Println("Starting HTTP server")
+	log.Printf("Starting HTTP server on port %s\n", Port)
 
 	err := s.ListenAndServe()
 	if err != nil {
