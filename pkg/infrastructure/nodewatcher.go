@@ -34,17 +34,39 @@ func (nw *NodeWatcher) addFunc(node interface{}) {
 	// TODO: Check the status of the node! Try to turn on node-1 after master is ready, to see if this callback is triggered again!
 
 	// check if it can be used for task scheduling
-	for _, t := range n.Spec.Taints {
-		if t.Effect == apiv1.TaintEffectNoSchedule {
-			// Skip no schedule node
-			log.Printf("Cannot use %s for scheduling tasks\n", n.Name)
-			return
-		}
+	if !isNodeAvailableForScheduling(n) {
+		log.Printf("Cannot use %s for scheduling tasks\n", n.Name)
+		return
 	}
 
 	nw.nodelistMutex.Lock()
 	nw.nodelist = append(nw.nodelist, *n)
 	nw.nodelistMutex.Unlock()
+}
+
+func isNodeAvailableForScheduling(node *apiv1.Node) bool {
+	// Check readiness
+	if !isNodeReady(node) {
+		return false
+	}
+
+	for _, t := range node.Spec.Taints {
+		if t.Effect == apiv1.TaintEffectNoSchedule {
+			return false
+		}
+	}
+
+	return true
+}
+
+func isNodeReady(node *apiv1.Node) bool {
+	for _, cond := range node.Status.Conditions {
+		if cond.Type == apiv1.NodeReady {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Handles the deletion of a node
