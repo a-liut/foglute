@@ -10,12 +10,10 @@ import (
 	"foglute/internal/model"
 	"foglute/pkg/config"
 	"foglute/pkg/infrastructure"
-	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/pointer"
 	"log"
 	"math/rand"
 	"strconv"
@@ -308,24 +306,24 @@ func (manager *Manager) performPlacement(application *model.Application, infrast
 
 	errors := make([]error, 0)
 
-	deploymentsClient := manager.clientset.AppsV1().Deployments(apiv1.NamespaceDefault)
+	podClient := manager.clientset.CoreV1().Pods(apiv1.NamespaceDefault)
 	servicesClient := manager.clientset.CoreV1().Services(apiv1.NamespaceDefault)
 
 	for _, assignment := range placement.Assignments {
-		deployment, services, err := manager.createDeploymentFromAssignment(application, infrastructure, &assignment)
+		pod, services, err := manager.createPodFromAssignment(application, infrastructure, &assignment)
 		if err != nil {
-			log.Printf("Cannot get Deployment and Services for application %s and assignment (%s, %s): %s\n", application.ID, assignment.ServiceID, assignment.NodeID, err)
+			log.Printf("Cannot get Pod and Services for application %s and assignment (%s, %s): %s\n", application.ID, assignment.ServiceID, assignment.NodeID, err)
 			errors = append(errors, err)
 			continue
 		}
 
-		_, err = deploymentsClient.Create(deployment)
+		_, err = podClient.Create(pod)
 		if err != nil {
-			log.Printf("Cannot create a Deployment for application %s and assignment (%s, %s): %s\n", application.ID, assignment.ServiceID, assignment.NodeID, err)
+			log.Printf("Cannot create a Pod for application %s and assignment (%s, %s): %s\n", application.ID, assignment.ServiceID, assignment.NodeID, err)
 			errors = append(errors, err)
 			continue
 		} else {
-			log.Printf("Deployment %s created.\n", assignment.ServiceID)
+			log.Printf("Pod %s created.\n", assignment.ServiceID)
 		}
 
 		for _, s := range services {
@@ -348,7 +346,7 @@ func (manager *Manager) performPlacement(application *model.Application, infrast
 }
 
 // Returns Kubernetes Deployments and Services for the given Application according to a given Assignment
-func (manager *Manager) createDeploymentFromAssignment(application *model.Application, infrastructure *model.Infrastructure, assignment *model.Assignment) (*appsv1.Deployment, []*apiv1.Service, error) {
+func (manager *Manager) createPodFromAssignment(application *model.Application, infrastructure *model.Infrastructure, assignment *model.Assignment) (*apiv1.Pod, []*apiv1.Service, error) {
 	var service *model.Service
 	for _, s := range application.Services {
 		if s.Id == assignment.ServiceID {
@@ -448,45 +446,31 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 		}
 	}
 
-	deploymentName := fmt.Sprintf("%s-%s", application.ID, assignment.ServiceID)
+	podName := fmt.Sprintf("%s-%s", application.ID, assignment.ServiceID)
 
-	deployment := &appsv1.Deployment{
+	pod := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: deploymentName,
+			Name: podName,
 			Labels: map[string]string{
 				fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
 				fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
 			},
 		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: pointer.Int32Ptr(1),
-			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{
-				fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
-				fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
-			}},
-			Template: apiv1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
-						fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
-					},
+		Spec: apiv1.PodSpec{
+			NodeName: node.Name, // Deploy the pod to the right node only
+			Containers: []apiv1.Container{
+				{
+					Name:            service.Id,
+					Image:           service.Image.Name,
+					ImagePullPolicy: pullPolicy,
+					Ports:           ports,
+					SecurityContext: secContext,
+					Env:             env,
 				},
-				Spec: apiv1.PodSpec{
-					NodeName: node.Name, // Deploy the pod to the right node only
-					Containers: []apiv1.Container{
-						{
-							Name:            service.Id,
-							Image:           service.Image.Name,
-							ImagePullPolicy: pullPolicy,
-							Ports:           ports,
-							SecurityContext: secContext,
-							Env:             env,
-						},
-					}}},
-		},
+			}},
 	}
 
-	return deployment, services, nil
+	return pod, services, nil
 }
 
 // Deletes an application from the Kubernetes cluster
@@ -495,25 +479,25 @@ func (manager *Manager) undeploy(application *model.Application) []error {
 
 	startTime := time.Now()
 
-	deploymentsClient := manager.clientset.AppsV1().Deployments(apiv1.NamespaceDefault)
+	podInterface := manager.clientset.CoreV1().Pods(apiv1.NamespaceDefault)
 	serviceClient := manager.clientset.CoreV1().Services(apiv1.NamespaceDefault)
 
 	errors := make([]error, 0)
 
 	for _, s := range application.Services {
-		deploymentName := fmt.Sprintf("%s-%s", application.ID, s.Id)
+		podName := fmt.Sprintf("%s-%s", application.ID, s.Id)
 		deletePolicy := metav1.DeletePropagationForeground
 
-		log.Printf("Undeploying Deployment %s (%s)...\n", s.Id, deploymentName)
+		log.Printf("Undeploying Pod %s (%s)...\n", s.Id, podName)
 
-		err := deploymentsClient.Delete(deploymentName, &metav1.DeleteOptions{
+		err := podInterface.Delete(podName, &metav1.DeleteOptions{
 			PropagationPolicy: &deletePolicy,
 		})
 		if err != nil {
-			log.Printf("Cannot delete Deployment %s: %s\n", deploymentName, err)
+			log.Printf("Cannot delete Pod %s: %s\n", podName, err)
 			errors = append(errors, err)
 		} else {
-			log.Printf("Deployment %s deleted.\n", s.Id)
+			log.Printf("Pod %s deleted.\n", s.Id)
 		}
 
 		for _, port := range s.Image.Ports {
