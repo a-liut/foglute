@@ -372,6 +372,8 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 		return nil, nil, fmt.Errorf("node %s not found in the infrastructure", assignment.NodeID)
 	}
 
+	log.Printf("Creating %s deployment...", assignment.ServiceID)
+
 	services := make([]*apiv1.Service, 0)
 
 	// Image pull policy
@@ -388,6 +390,8 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 	}
 
 	// Checking env variables
+	log.Printf("Environment variables to set: %v\n", service.Image.Env)
+
 	env := make([]apiv1.EnvVar, len(service.Image.Env))
 	iEnv := 0
 	for varName, varValue := range service.Image.Env {
