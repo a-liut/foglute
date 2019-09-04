@@ -56,26 +56,27 @@ func applicationsHandler(manager *deployment.Manager, w http.ResponseWriter, r *
 		}
 	case http.MethodPost:
 		// Decode the application
-		d := json.NewDecoder(r.Body)
-		app := &model.Application{}
-		err := d.Decode(app)
+		var app model.Application
+
+		err := json.NewDecoder(r.Body).Decode(&app)
 		if err != nil {
 			handleError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
-		// Add the application to the manager
-		addErrors := manager.AddApplication(app)
-		if addErrors != nil {
-			handleError(w, http.StatusInternalServerError, "Cannot add application %s: %s", app.Name, addErrors)
-			return
-		}
+		go func() {
+			// Add the application to the manager
+			addErrors := manager.AddApplication(&app)
+			if addErrors != nil {
+				log.Printf("Some errors have been reported during application %s deployment: %s", app.Name, addErrors)
+			} else {
+				log.Printf("No errors while %s deployment", app.Name)
+			}
+		}()
 
 		// Send a successful response
-		r := newResponse("Application added successfully", "")
-		j, _ := json.Marshal(r)
-		_, err = fmt.Fprintln(w, string(j))
-		if err != nil {
+		r := newResponse("Application deployment request added successfully", "")
+		if err = json.NewEncoder(w).Encode(r); err != nil {
 			log.Println(err)
 		}
 	default:
