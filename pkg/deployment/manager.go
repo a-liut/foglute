@@ -126,15 +126,16 @@ func (manager *Manager) DeleteApplication(application *model.Application) []erro
 	}
 
 	err := manager.undeploy(application)
-	if err != nil {
-		return err
-	}
 
 	// Remove app from the deployments list
 	for i, dep := range manager.deployments {
 		if dep.Application.ID == application.ID {
 			manager.deployments = append(manager.deployments[:i], manager.deployments[i+1:]...)
 		}
+	}
+
+	if err != nil {
+		return err
 	}
 
 	return nil
