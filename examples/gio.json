@@ -8,8 +8,8 @@
         "name": "gio-frontend-ms:latest",
         "local": true,
         "env": {
-          "API_GATEWAY_HOST": "api-gateway",
-          "API_GATEWAY_PORT": "30000"
+          "API_GATEWAY_HOST": "gio-api-gateway-endpoint",
+          "API_GATEWAY_PORT": "5000"
         },
         "ports": [
           {
@@ -31,8 +31,8 @@
         "name": "gio-api-gateway-ms:latest",
         "local": true,
         "env": {
-          "DEVICE_SERVICE_HOST": "device-ms",
-          "DEVICE_SERVICE_PORT": "30001"
+          "DEVICE_SERVICE_HOST": "gio-device-ms-endpoint",
+          "DEVICE_SERVICE_PORT": "5001"
         },
         "ports": [
           {
@@ -54,8 +54,8 @@
         "name": "gio-device-ms:latest",
         "local": true,
         "env": {
-          "DEVICE_DRIVER_HOST": "device-driver",
-          "DEVICE_DRIVER_PORT": "30006"
+          "DEVICE_DRIVER_HOST": "gio-device-driver-endpoint",
+          "DEVICE_DRIVER_PORT": "5006"
         },
         "ports": [
           {
@@ -77,10 +77,12 @@
         "name": "gio-device-driver:latest",
         "local": true,
         "env": {
-          "FOG_NODE_HOST": "localhost",
-          "FOG_NODE_PORT": "8080",
-          "DEVICE_SERVICE_HOST": "device-ms",
-          "DEVICE_SERVICE_PORT": "30001"
+          "FOG_NODE_HOST": "10.44.0.0",
+          "FOG_NODE_PORT": "5003",
+          "DEVICE_SERVICE_HOST": "gio-device-ms-endpoint",
+          "DEVICE_SERVICE_PORT": "5001",
+          "CALLBACK_HOST": "localhost",
+          "CALLBACK_PORT": "5006"
         },
         "ports": [
           {
