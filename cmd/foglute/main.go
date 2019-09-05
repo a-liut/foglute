@@ -23,7 +23,7 @@ import (
 )
 
 func main() {
-	log.Println("Starting foglute")
+	log.Println("Starting FogLute")
 
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -81,7 +81,7 @@ func main() {
 	close(quit)
 	wg.Wait()
 
-	log.Println("foglute ends")
+	log.Println("FogLute ends")
 }
 
 // Returns the home directory

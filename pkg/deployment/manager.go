@@ -439,7 +439,7 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 							fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
 							fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
 						},
-						Type: apiv1.ServiceTypeNodePort,
+						Type: apiv1.ServiceTypeLoadBalancer,
 					},
 				}
 
@@ -473,6 +473,7 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 				},
 				Spec: apiv1.PodSpec{
 					NodeName: node.Name, // Deploy the pod to the right node only
+					Hostname: deploymentName,
 					Containers: []apiv1.Container{
 						{
 							Name:            service.Id,
@@ -521,13 +522,11 @@ func (manager *Manager) undeploy(application *model.Application) []error {
 				// Remove the associated service
 				serviceName := port.Name
 
-				err := serviceClient.Delete(serviceName, &metav1.DeleteOptions{
-					PropagationPolicy: &deletePolicy,
-				})
-
 				log.Printf("Undeploying Service %s...\n", serviceName)
 
-				if err != nil {
+				if err := serviceClient.Delete(serviceName, &metav1.DeleteOptions{
+					PropagationPolicy: &deletePolicy,
+				}); err != nil {
 					log.Printf("Cannot undeploy Service %s: %s\n", serviceName, err)
 					errors = append(errors, err)
 				} else {

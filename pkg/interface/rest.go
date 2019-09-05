@@ -70,7 +70,7 @@ func applicationsHandler(manager *deployment.Manager, w http.ResponseWriter, r *
 			if addErrors != nil {
 				log.Printf("Some errors have been reported during application %s deployment: %s", app.Name, addErrors)
 			} else {
-				log.Printf("No errors while %s deployment", app.Name)
+				log.Printf("No errors during %s app deployment", app.Name)
 			}
 		}()
 
@@ -106,17 +106,17 @@ func applicationHandler(manager *deployment.Manager, w http.ResponseWriter, r *h
 		}
 	case http.MethodDelete:
 		// Remove the application from the manager
-		deleteErrors := manager.DeleteApplication(deploy.Application)
-		if deleteErrors != nil {
-			handleError(w, http.StatusNotFound, "Cannot delete application %s: %s", deploy.Application.Name, deleteErrors)
-			return
-		}
+		go func() {
+			if deleteErrors := manager.DeleteApplication(deploy.Application); deleteErrors != nil {
+				log.Printf("Error during deleting application %s: %s", deploy.Application.Name, deleteErrors)
+			} else {
+				log.Printf("No errors during %s app deletion", deploy.Application.Name)
+			}
+		}()
 
 		// Send a successful response
-		r := newResponse("Application deleted successfully", "")
-		j, _ := json.Marshal(r)
-		_, sendErr := fmt.Fprintln(w, string(j))
-		if sendErr != nil {
+		r := newResponse("Application deletion request added successfully", "")
+		if sendErr := json.NewEncoder(w).Encode(r); sendErr != nil {
 			log.Println(sendErr)
 		}
 	}
