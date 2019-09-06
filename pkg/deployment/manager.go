@@ -80,24 +80,9 @@ func (manager *Manager) HasApplication(application *model.Application) bool {
 }
 
 // Adds an application to the manager.
-// If the application is already deployed, the application is redeployed, otherwise
-// it is deployed and added to the manager
+// If the application is already deployed, nothing is done. Otherwise the application is started and added to the manager
 func (manager *Manager) AddApplication(application *model.Application) []error {
-	if manager.HasApplication(application) {
-		placement, err := manager.redeploy(application)
-		if err != nil {
-			return err
-		}
-
-		// Update the application in the list
-		for i, dep := range manager.deployments {
-			if application.ID == dep.Application.ID {
-				manager.deployments[i].Application = application
-				manager.deployments[i].Placement = placement
-				break
-			}
-		}
-	} else {
+	if !manager.HasApplication(application) {
 		// Deploy the new application
 		placement, err := manager.deploy(application)
 
