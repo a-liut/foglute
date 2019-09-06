@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+const (
+	// update ticker delay
+	updateDelay = 2 * time.Minute
+)
+
 // A NodeWatcher listen for changes of the infrastructure - the nodes of the Kubernetes cluster - and stores them
 // to let the application get the infrastructure faster.
 type NodeWatcher struct {
@@ -22,6 +27,9 @@ type NodeWatcher struct {
 	// List of nodes
 	nodelist []apiv1.Node
 
+	// Ticker for nodes update
+	updateTicker *time.Ticker
+
 	// Stop channel
 	stop chan struct{}
 }
@@ -30,8 +38,6 @@ type NodeWatcher struct {
 func (nw *NodeWatcher) addFunc(node interface{}) {
 	n := node.(*apiv1.Node)
 	log.Printf("A node has been added: %s\n", n.Name)
-
-	// TODO: Check the status of the node! Try to turn on node-1 after master is ready, to see if this callback is triggered again!
 
 	// check if it can be used for task scheduling
 	if !isNodeAvailableForScheduling(n) {
@@ -80,6 +86,8 @@ func (nw *NodeWatcher) deleteFunc(node interface{}) {
 		if n.UID == removedNode.UID {
 			// Remove the node from the list
 			nw.nodelist = append(nw.nodelist[:i], nw.nodelist[i+1:]...)
+
+			log.Printf("Node (%s) %s removed from available nodes\n", n.UID, n.Name)
 			return
 		}
 	}
@@ -111,6 +119,50 @@ func (nw *NodeWatcher) startWatching() {
 		})
 
 	go controller.Run(nw.stop)
+
+	// Update the list from time to time
+	nw.updateTicker = time.NewTicker(updateDelay)
+
+	go nw.nodeUpdater()
+}
+
+func (nw *NodeWatcher) nodeUpdater() {
+	log.Println("Node Updater started!")
+	for {
+		select {
+		case <-nw.updateTicker.C:
+			go nw.updateNodes()
+		case <-nw.stop:
+			nw.updateTicker.Stop()
+
+			log.Println("Node Updater stopped!")
+			return
+		}
+	}
+}
+
+func (nw *NodeWatcher) updateNodes() {
+	newNodes, err := nw.fetchNodes()
+	if err != nil {
+		log.Printf("Cannot update nodes: %s\n", err)
+	}
+
+	nw.nodelistMutex.Lock()
+	defer nw.nodelistMutex.Unlock()
+
+	oldNodeCount := len(nw.nodelist)
+
+	nw.nodelist = make([]apiv1.Node, 0)
+
+	for _, node := range newNodes {
+		if isNodeAvailableForScheduling(&node) {
+			nw.nodelist = append(nw.nodelist, node)
+		} else {
+			log.Printf("Cannot use (%s) %s for job scheduling\n", node.UID, node.Name)
+		}
+	}
+
+	log.Printf("Node list updated. Old node count: %d, now %d\n", oldNodeCount, len(nw.nodelist))
 }
 
 // Stops the watcher
@@ -132,6 +184,7 @@ func NewNodeWatcher(clientset *kubernetes.Clientset) (*NodeWatcher, error) {
 		nodelistMutex: &sync.Mutex{},
 		nodelist:      make([]apiv1.Node, 0),
 		stop:          make(chan struct{}),
+		updateTicker:  nil,
 	}
 
 	nw.startWatching()
