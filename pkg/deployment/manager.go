@@ -101,6 +101,11 @@ func (manager *Manager) AddApplication(application *model.Application) []error {
 		// Deploy the new application
 		placement, err := manager.deploy(application)
 
+		// Return if the deployment is not performed
+		if err != nil && placement == nil {
+			return err
+		}
+
 		d := &Deploy{
 			Application: application,
 			Placement:   placement,
@@ -558,12 +563,16 @@ func (manager *Manager) redeploy(application *model.Application) (*model.Placeme
 	}
 
 	placement, err := manager.deploy(application)
-	if err != nil {
+	if err != nil && placement == nil {
 		log.Printf("Application %s deploy error: %s\n", application.Name, err)
 		return nil, err
 	}
 
-	log.Printf("Application %s redeployed successfully\n", application.Name)
+	if err != nil {
+		log.Printf("Errors during %s redeployment: %s", application.Name, err)
+	} else {
+		log.Printf("Application %s redeployed successfully\n", application.Name)
+	}
 
 	return placement, nil
 }
