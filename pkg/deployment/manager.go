@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	defaultLinkLatency   = 99999
+	defaultLinkLatency   = 1
 	defaultLinkBandwidth = 99999
 )
 
