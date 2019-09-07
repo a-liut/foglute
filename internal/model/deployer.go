@@ -1,14 +1,22 @@
 /*
-FogLute
-Microservice Fog Orchestration platform.
-
-*/
+ * FogLute
+ *
+ * A Microservice Fog Orchestration platform.
+ *
+ * API version: 1.0.0
+ * Contact: andrea.liut@gmail.com
+ */
 package model
 
 import (
 	"encoding/json"
-	"fmt"
 	v1 "k8s.io/api/core/v1"
+)
+
+const (
+	NodeDefaultHwCaps    = 9999
+	NodeDefaultLongitude = 0
+	NodeDefaultLatitude  = 0
 )
 
 // An Application is a set of services and relations between them.
@@ -70,12 +78,6 @@ func (i Infrastructure) String() string {
 	return string(b)
 }
 
-const (
-	NodeDefaultHwCaps    = 9999
-	NodeDefaultLongitude = 0
-	NodeDefaultLatitude  = 0
-)
-
 // A Node represent a device that can run a service.
 type Node struct {
 	ID       string        `json:"id"`
@@ -92,37 +94,7 @@ func (n Node) String() string {
 	return string(b)
 }
 
-func (n Node) AddIoTCap(name string) error {
-	if len(n.Profiles) > 0 {
-		return fmt.Errorf("no profile available")
-	}
-
-	n.Profiles[0].IoTCaps = append(n.Profiles[0].IoTCaps, name)
-
-	return nil
-}
-
-func (n Node) RemoveIoTCap(name string) error {
-	if len(n.Profiles) > 0 {
-		return fmt.Errorf("no profile available")
-	}
-
-	idx := -1
-	for i, c := range n.Profiles[0].IoTCaps {
-		if c == name {
-			idx = i
-			break
-		}
-	}
-
-	if idx > 0 {
-		n.Profiles[0].IoTCaps = append(n.Profiles[0].IoTCaps[:idx], n.Profiles[0].IoTCaps[idx+1:]...)
-	}
-
-	return nil
-}
-
-// A Location represent a geolocated place in the world
+// A Location represent a geo-located place in the world
 type Location struct {
 	Longitude int `json:"longitude"`
 	Latitude  int `json:"latitude"`
@@ -145,7 +117,7 @@ type Link struct {
 	Bandwidth   int     `json:"bandwidth"`
 }
 
-// A Placement is a set of Node-Service assignments produced by a deploy analyzer
+// A Placement is a set of Node-Service assignments produced by a Placement Analyzer
 type Placement struct {
 	Probability float64
 	Assignments []Assignment
@@ -156,7 +128,7 @@ func (p Placement) String() string {
 	return string(b)
 }
 
-// An Assignment is a pair Node-Service produced by a deploy analyzer
+// An Assignment is a pair Node-Service produced by a Placement Analyzer
 type Assignment struct {
 	ServiceID string
 	NodeID    string

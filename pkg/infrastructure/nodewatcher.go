@@ -1,3 +1,11 @@
+/*
+ * FogLute
+ *
+ * A Microservice Fog Orchestration platform.
+ *
+ * API version: 1.0.0
+ * Contact: andrea.liut@gmail.com
+ */
 package infrastructure
 
 import (
@@ -50,6 +58,7 @@ func (nw *NodeWatcher) addFunc(node interface{}) {
 	nw.nodelistMutex.Unlock()
 }
 
+// Returns true if the node can be used for running services.
 func isNodeAvailableForScheduling(node *apiv1.Node) bool {
 	// Check readiness
 	if !isNodeReady(node) {
@@ -65,6 +74,7 @@ func isNodeAvailableForScheduling(node *apiv1.Node) bool {
 	return true
 }
 
+// Returns true if the node is notifying Ready status.
 func isNodeReady(node *apiv1.Node) bool {
 	for _, cond := range node.Status.Conditions {
 		if cond.Type == apiv1.NodeReady {
@@ -126,6 +136,7 @@ func (nw *NodeWatcher) startWatching() {
 	go nw.nodeUpdater()
 }
 
+// Updates the list of nodes periodically
 func (nw *NodeWatcher) nodeUpdater() {
 	log.Println("Node Updater started!")
 	for {
@@ -141,10 +152,11 @@ func (nw *NodeWatcher) nodeUpdater() {
 	}
 }
 
+// Updates the list of nodes fetching nodes from the cluster
 func (nw *NodeWatcher) updateNodes() {
 	newNodes, err := nw.fetchNodes()
 	if err != nil {
-		log.Printf("Cannot update nodes: %s\n", err)
+		log.Printf("Cannot retrieve nodes: %s\n", err)
 	}
 
 	nw.nodelistMutex.Lock()

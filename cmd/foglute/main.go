@@ -1,8 +1,11 @@
 /*
-FogLute
-Microservice Fog Orchestration platform.
-
-*/
+ * FogLute
+ *
+ * A Microservice Fog Orchestration platform.
+ *
+ * API version: 1.0.0
+ * Contact: andrea.liut@gmail.com
+ */
 package main
 
 import (
@@ -52,7 +55,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var analyzer deployment.DeployAnalyzer
+	var analyzer deployment.PlacementAnalyzer
 	analyzer, err = edgeusher.NewEdgeUsher(*edgeUsherPath)
 	if err != nil {
 		log.Fatal(err)

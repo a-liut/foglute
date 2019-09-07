@@ -1,8 +1,11 @@
 /*
-FogLute
-Microservice Fog Orchestration platform.
-
-*/
+ * FogLute
+ *
+ * A Microservice Fog Orchestration platform.
+ *
+ * API version: 1.0.0
+ * Contact: andrea.liut@gmail.com
+ */
 package deployment
 
 import (
@@ -35,10 +38,11 @@ type Deploy struct {
 	Placement   *model.Placement   `json:"placement"`
 }
 
-// The Manager is responsible to deploy deployments.
+// The Deployer component is responsible to store information about applications that are deployed by FogLute,
+// managing their deployment and removal from the system.
 type Manager struct {
 	// Analyzer to produce placements for deployments
-	analyzer *DeployAnalyzer
+	analyzer *PlacementAnalyzer
 
 	// Kubernetes Clientset
 	clientset *kubernetes.Clientset
@@ -109,13 +113,13 @@ func (manager *Manager) AddApplication(application *model.Application) []error {
 }
 
 // Deletes an application from the manager.
-// If the application is deployed, then it undeploy the application from the cluster
+// If the application is deployed, then it removes the application from the cluster
 func (manager *Manager) DeleteApplication(application *model.Application) []error {
 	if !manager.HasApplication(application) {
 		return []error{fmt.Errorf("cannot find application %s", application.Name)}
 	}
 
-	err := manager.undeploy(application)
+	err := manager.delete(application)
 
 	// Remove app from the deployments list
 	for i, dep := range manager.deployments {
@@ -135,7 +139,7 @@ func (manager *Manager) DeleteApplication(application *model.Application) []erro
 var instance *Manager
 
 // Get an instance of Manager
-func NewDeploymentManager(usher *DeployAnalyzer, clientset *kubernetes.Clientset, quit chan struct{}) (*Manager, error) {
+func NewDeploymentManager(usher *PlacementAnalyzer, clientset *kubernetes.Clientset, quit chan struct{}) (*Manager, error) {
 	if instance == nil {
 		instance = &Manager{
 			analyzer:    usher,
@@ -239,7 +243,7 @@ func (manager *Manager) deploy(application *model.Application) (*model.Placement
 
 	log.Printf("Getting a deployment for app %s (%s)\n", application.Name, application.ID)
 
-	placements, err := (*manager.analyzer).GetDeployment(Normal, application, currentInfrastructure)
+	placements, err := (*manager.analyzer).GetPlacements(Normal, application, currentInfrastructure)
 	if err != nil {
 		return nil, []error{err}
 	}
@@ -482,8 +486,8 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 }
 
 // Deletes an application from the Kubernetes cluster
-func (manager *Manager) undeploy(application *model.Application) []error {
-	log.Printf("Call to undeploy with app: %s (%s)\n", application.ID, application.Name)
+func (manager *Manager) delete(application *model.Application) []error {
+	log.Printf("Call to delete with app: %s (%s)\n", application.ID, application.Name)
 
 	startTime := time.Now()
 
@@ -496,7 +500,7 @@ func (manager *Manager) undeploy(application *model.Application) []error {
 		deploymentName := fmt.Sprintf("%s-%s", application.ID, s.Id)
 		deletePolicy := metav1.DeletePropagationForeground
 
-		log.Printf("Undeploying Deployment %s (%s)...\n", s.Id, deploymentName)
+		log.Printf("Deleting Deployment %s (%s)...\n", s.Id, deploymentName)
 
 		err := deploymentsClient.Delete(deploymentName, &metav1.DeleteOptions{
 			PropagationPolicy: &deletePolicy,
@@ -513,12 +517,12 @@ func (manager *Manager) undeploy(application *model.Application) []error {
 				// Remove the associated service
 				serviceName := port.Name
 
-				log.Printf("Undeploying Service %s...\n", serviceName)
+				log.Printf("Deleting Service %s...\n", serviceName)
 
 				if err := serviceClient.Delete(serviceName, &metav1.DeleteOptions{
 					PropagationPolicy: &deletePolicy,
 				}); err != nil {
-					log.Printf("Cannot undeploy Service %s: %s\n", serviceName, err)
+					log.Printf("Cannot delete Service %s: %s\n", serviceName, err)
 					errors = append(errors, err)
 				} else {
 					log.Printf("Service %s deleted.\n", serviceName)
@@ -528,7 +532,7 @@ func (manager *Manager) undeploy(application *model.Application) []error {
 	}
 
 	elapsed := time.Since(startTime)
-	log.Printf("Undeploy took %v\n", elapsed)
+	log.Printf("Remove took %v\n", elapsed)
 
 	if len(errors) > 0 {
 		return errors
@@ -538,12 +542,12 @@ func (manager *Manager) undeploy(application *model.Application) []error {
 }
 
 // Performs the redeploy of an application
-// It first undeploy the application and then deploy it again.
+// It first delete the application and then start it again.
 func (manager *Manager) redeploy(application *model.Application) (*model.Placement, []error) {
 	log.Printf("Redeploying application %s...\n", application.Name)
 
-	if err := manager.undeploy(application); err != nil {
-		log.Printf("Application %s undeploy error: %s\n", application.Name, err)
+	if err := manager.delete(application); err != nil {
+		log.Printf("Application %s delete error: %s\n", application.Name, err)
 		return nil, err
 	}
 

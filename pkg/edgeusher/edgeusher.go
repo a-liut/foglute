@@ -1,8 +1,11 @@
 /*
-FogLute
-Microservice Fog Orchestration platform.
-
-*/
+ * FogLute
+ *
+ * A Microservice Fog Orchestration platform.
+ *
+ * API version: 1.0.0
+ * Contact: andrea.liut@gmail.com
+ */
 package edgeusher
 
 import (
@@ -19,8 +22,8 @@ import (
 )
 
 const (
-	EdgeUsherExec  = "edgeusher.pl"
-	HedgeUsherExec = "hedgeusher.pl"
+	execName          = "edgeusher.pl"
+	heuristicExecName = "hedgeusher.pl"
 )
 
 // EdgeUsher is an object that wraps the EdgeUsher software to produce placements of an application over an infrastructure.
@@ -29,9 +32,9 @@ type EdgeUsher struct {
 	hExecPath string
 }
 
-// A DeployerAnalyzer takes an application and an infrastructure and produce a set of placements for them.
+// A PlacementAnalyzer takes an application and an infrastructure and produce a set of placements for them.
 // Each Service of the application is assigned to a specific node of the infrastructure.
-func (eu *EdgeUsher) GetDeployment(mode deployment.Mode, application *model.Application, infrastructure *model.Infrastructure) ([]model.Placement, error) {
+func (eu *EdgeUsher) GetPlacements(mode deployment.Mode, application *model.Application, infrastructure *model.Infrastructure) ([]model.Placement, error) {
 	var euPath string
 	switch mode {
 	case deployment.Normal:
@@ -49,7 +52,7 @@ func (eu *EdgeUsher) GetDeployment(mode deployment.Mode, application *model.Appl
 	safeApp := cleanApp(application, table)
 	safeInfr := cleanInfr(infrastructure, table)
 
-	// Get Problog code
+	// Generate Problog code
 	appProlog := getPlCodeFromApplication(safeApp)
 	infrProlog := getPlCodeFromInfrastructure(safeInfr)
 
@@ -62,7 +65,7 @@ func (eu *EdgeUsher) GetDeployment(mode deployment.Mode, application *model.Appl
 		return nil, err
 	}
 
-	log.Printf("EdgeUsher raw result: %s\n", result)
+	log.Println("EdgeUsher raw result", result)
 
 	placements, err := parseResult(result)
 	if err != nil {
@@ -291,8 +294,8 @@ func checkProblog() bool {
 
 // Returns true if EdgeUsher is available
 func checkEdgeUsher(p string) bool {
-	_, errEu := os.Stat(path.Join(p, EdgeUsherExec))
-	_, errHeu := os.Stat(path.Join(p, HedgeUsherExec))
+	_, errEu := os.Stat(path.Join(p, execName))
+	_, errHeu := os.Stat(path.Join(p, heuristicExecName))
 	return errEu == nil && errHeu == nil
 }
 
@@ -309,7 +312,7 @@ func NewEdgeUsher(p string) (*EdgeUsher, error) {
 	log.Println("EdgeUsher ready!")
 
 	return &EdgeUsher{
-		execPath:  path.Join(p, EdgeUsherExec),
-		hExecPath: path.Join(p, HedgeUsherExec),
+		execPath:  path.Join(p, execName),
+		hExecPath: path.Join(p, heuristicExecName),
 	}, nil
 }
