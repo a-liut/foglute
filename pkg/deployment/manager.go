@@ -20,9 +20,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/pointer"
 	"log"
-	"math/rand"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -269,32 +266,6 @@ func (manager *Manager) deploy(application *model.Application) (*model.Placement
 	}
 
 	return best, nil
-}
-
-// Returns the best placement from a list of placements
-func pickBestPlacement(placements []model.Placement) (*model.Placement, error) {
-	if len(placements) == 0 {
-		return nil, fmt.Errorf("no feasible deployments")
-	}
-
-	// Scan placements and pick the best ones
-	list := make([]*model.Placement, 0)
-	bestProb := 0.0
-	for _, p := range placements {
-		if bestProb < p.Probability {
-			// Clear the list
-			list = list[:0]
-
-			list = append(list, &p)
-		} else if bestProb == p.Probability {
-			list = append(list, &p)
-		}
-	}
-
-	// Pick a random placement
-	idx := rand.Intn(len(list))
-
-	return list[idx], nil
 }
 
 // Performs proper operations in order to apply the placement to the Kubernetes cluster
@@ -602,58 +573,4 @@ func (manager *Manager) GetNodes() ([]model.Node, error) {
 	nodes := manager.nodeWatcher.GetNodes()
 
 	return convertNodes(nodes), nil
-}
-
-// Converts a list of Kubernetes nodes to a list of Manager nodes
-func convertNodes(nodes []apiv1.Node) []model.Node {
-	ret := make([]model.Node, len(nodes))
-	for i, n := range nodes {
-		ret[i] = convertNode(n)
-	}
-
-	return ret
-}
-
-// Converts a Kubernetes node to a Manager node
-func convertNode(node apiv1.Node) model.Node {
-	n := model.Node{
-		ID:      string(node.GetUID()),
-		Name:    node.Name,
-		Address: node.Status.Addresses[0].Address,
-		Location: model.Location{
-			Longitude: model.NodeDefaultLongitude,
-			Latitude:  model.NodeDefaultLatitude,
-		},
-		Profiles: make([]model.NodeProfile, 1),
-		Node:     &node,
-	}
-
-	if long, err := strconv.ParseInt(node.Labels[config.LongitudeLabel], 10, 32); err == nil {
-		n.Location.Longitude = int(long)
-	}
-
-	if lat, err := strconv.ParseInt(node.Labels[config.LatitudeLabel], 10, 32); err == nil {
-		n.Location.Latitude = int(lat)
-	}
-
-	n.Profiles[0].Probability = 1
-	if iotCaps, exists := node.Labels[config.IotLabel]; exists {
-		n.Profiles[0].IoTCaps = strings.Split(iotCaps, ",")
-	} else {
-		n.Profiles[0].IoTCaps = make([]string, 0)
-	}
-	if secCaps, exists := node.Labels[config.SecLabel]; exists {
-		n.Profiles[0].SecCaps = strings.Split(secCaps, ",")
-	} else {
-		n.Profiles[0].SecCaps = make([]string, 0)
-	}
-
-	if hwCaps, err := strconv.ParseInt(node.Labels[config.HwCapsLabel], 10, 32); err == nil {
-		n.Profiles[0].HWCaps = int(hwCaps)
-	} else {
-		// Default value
-		n.Profiles[0].HWCaps = model.NodeDefaultHwCaps
-	}
-
-	return n
 }
