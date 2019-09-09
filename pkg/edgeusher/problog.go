@@ -60,7 +60,11 @@ func getPlCodeFromInfrastructure(infrastructure *model.Infrastructure) string {
 
 // Calls Problog using the command string passed
 // It returns the output of the process
-func callProblog(cmdString string) (string, error) {
+func callProblog(code string) (string, error) {
+	cmdString := "echo \"" + code + "\""
+
+	log.Println(cmdString)
+
 	cmd := exec.Command("bash", "-c", cmdString+" | problog")
 	out, err := cmd.CombinedOutput()
 	if err != nil {

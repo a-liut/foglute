@@ -53,11 +53,9 @@ func (eu *EdgeUsher) GetPlacements(mode deployment.Mode, application *model.Appl
 	appProlog := getPlCodeFromApplication(safeApp)
 	infrProlog := getPlCodeFromInfrastructure(safeInfr)
 
-	cmdString := "echo \"" + appProlog + "\n" + infrProlog + "\n\n:- consult('" + euPath + "').\nquery(placement(Chain, Placement, Routes)).\n" + "\""
+	code := getCode(appProlog, infrProlog, euPath)
 
-	log.Println(cmdString)
-
-	result, err := callProblog(cmdString)
+	result, err := callProblog(code)
 	if err != nil {
 		return nil, err
 	}
@@ -76,6 +74,10 @@ func (eu *EdgeUsher) GetPlacements(mode deployment.Mode, application *model.Appl
 	cleanedPlacements := cleanPlacements(placements, table)
 
 	return cleanedPlacements, nil
+}
+
+func getCode(appCode string, infrCode string, execPath string) string {
+	return appCode + "\n" + infrCode + "\n\n:- consult('" + execPath + "').\nquery(placement(Chain, Placement, Routes)).\n"
 }
 
 // Converts all strings in placements to get real names for services and nodes using symbol tables.
