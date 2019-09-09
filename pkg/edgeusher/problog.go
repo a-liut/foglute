@@ -3,6 +3,7 @@ package edgeusher
 import (
 	"fmt"
 	"foglute/internal/model"
+	"log"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -63,6 +64,7 @@ func callProblog(cmdString string) (string, error) {
 	cmd := exec.Command("bash", "-c", cmdString+" | problog")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		log.Println(string(out))
 		return "", err
 	}
 
