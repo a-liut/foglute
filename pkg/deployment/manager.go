@@ -544,24 +544,26 @@ func (manager *Manager) getInfrastructure() (*model.Infrastructure, error) {
 		return nil, err
 	}
 
-	linksCount := (len(nodes) * (len(nodes) - 1)) / 2
+	// Create the complete graph of node
+	linksCount := len(nodes) * (len(nodes) - 1)
 	i := &model.Infrastructure{
 		Nodes: nodes,
 		Links: make([]model.Link, linksCount),
 	}
 
 	// Link the nodes
-	// TODO: implement proper link creation strategy
 	j := 0
-	for idx, src := range nodes {
-		for _, dst := range nodes[idx+1:] {
-			i.Links[j].Probability = 1                  // TODO
-			i.Links[j].Bandwidth = defaultLinkBandwidth // TODO
-			i.Links[j].Latency = defaultLinkLatency     // TODO
-			i.Links[j].Src = src.ID
-			i.Links[j].Dst = dst.ID
+	for _, src := range nodes {
+		for _, dst := range nodes {
+			if src.ID != dst.ID {
+				i.Links[j].Probability = 1
+				i.Links[j].Bandwidth = defaultLinkBandwidth
+				i.Links[j].Latency = defaultLinkLatency
+				i.Links[j].Src = src.ID
+				i.Links[j].Dst = dst.ID
 
-			j++
+				j++
+			}
 		}
 	}
 
