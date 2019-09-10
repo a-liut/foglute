@@ -20,6 +20,7 @@
           }
         ]
       },
+      "node_name": "k8s-node-3",
       "t_proc": 2,
       "hw_reqs": 1,
       "iot_reqs": [],
@@ -43,6 +44,7 @@
           }
         ]
       },
+      "node_name": "k8s-node-3",
       "t_proc": 2,
       "hw_reqs": 1,
       "iot_reqs": [],
@@ -66,6 +68,7 @@
           }
         ]
       },
+      "node_name": "k8s-node-3",
       "t_proc": 2,
       "hw_reqs": 1,
       "iot_reqs": [],
@@ -97,7 +100,7 @@
       "t_proc": 2,
       "hw_reqs": 1,
       "iot_reqs": [
-        "FE:F4:1C:74:66:B3"
+        "smartvase1"
       ],
       "sec_reqs": []
     },
@@ -127,7 +130,7 @@
       "t_proc": 2,
       "hw_reqs": 1,
       "iot_reqs": [
-        "F0:8A:D5:18:88:99"
+        "smartvase2"
       ],
       "sec_reqs": []
     }
