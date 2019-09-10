@@ -72,7 +72,7 @@
       "sec_reqs": []
     },
     {
-      "id": "device-driver",
+      "id": "device-driver-1",
       "image": {
         "name": "gio-device-driver:latest",
         "local": true,
@@ -86,17 +86,48 @@
         },
         "ports": [
           {
-            "name": "gio-device-driver-endpoint",
+            "name": "gio-device-driver-1-endpoint",
             "host_port": 5006,
             "container_port": 8080,
             "expose": 30006
           }
         ]
       },
+      "node_name": "k8s-node-1",
       "t_proc": 2,
       "hw_reqs": 1,
       "iot_reqs": [
-        "fognode"
+        "FE:F4:1C:74:66:B3"
+      ],
+      "sec_reqs": []
+    },
+    {
+      "id": "device-driver-2",
+      "image": {
+        "name": "gio-device-driver:latest",
+        "local": true,
+        "env": {
+          "FOG_NODE_HOST": "10.44.0.0",
+          "FOG_NODE_PORT": "5003",
+          "DEVICE_SERVICE_HOST": "gio-device-ms-endpoint",
+          "DEVICE_SERVICE_PORT": "5001",
+          "CALLBACK_HOST": "localhost",
+          "CALLBACK_PORT": "5006"
+        },
+        "ports": [
+          {
+            "name": "gio-device-driver-2-endpoint",
+            "host_port": 5007,
+            "container_port": 8080,
+            "expose": 30007
+          }
+        ]
+      },
+      "node_name": "k8s-node-2",
+      "t_proc": 2,
+      "hw_reqs": 1,
+      "iot_reqs": [
+        "F0:8A:D5:18:88:99"
       ],
       "sec_reqs": []
     }
@@ -114,7 +145,12 @@
     },
     {
       "src": "device-ms",
-      "dst": "device-driver",
+      "dst": "device-driver-1",
+      "bandwidth": 1
+    },
+    {
+      "src": "device-ms",
+      "dst": "device-driver-2",
       "bandwidth": 1
     }
   ],
@@ -124,7 +160,16 @@
         "frontend",
         "api-gateway",
         "device-ms",
-        "device-driver"
+        "device-driver-1"
+      ],
+      "value": 99999
+    },
+    {
+      "chain": [
+        "frontend",
+        "api-gateway",
+        "device-ms",
+        "device-driver-2"
       ],
       "value": 99999
     }
