@@ -30,12 +30,13 @@ type Application struct {
 
 // A Service is a part of an application that can be executed.
 type Service struct {
-	Id      string   `json:"id"`
-	TProc   int      `json:"t_proc"`
-	HWReqs  int      `json:"hw_reqs"`
-	IoTReqs []string `json:"iot_reqs"`
-	SecReqs []string `json:"sec_reqs"`
-	Image   Image    `json:"image"`
+	Id        string   `json:"id"`
+	TProc     int      `json:"t_proc"`
+	HWReqs    int      `json:"hw_reqs"`
+	IoTReqs   []string `json:"iot_reqs"`
+	SecReqs   []string `json:"sec_reqs"`
+	Image     Image    `json:"image"`
+	Replicate bool     `json:"replicate"`
 }
 
 // An Image is a description of a Docker image to be used by a Service

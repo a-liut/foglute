@@ -18,6 +18,7 @@ require (
 	github.com/googleapis/gnostic v0.3.0 // indirect
 	github.com/gorilla/mux v1.7.3
 	github.com/hashicorp/golang-lru v0.5.3 // indirect
+	github.com/jinzhu/copier v0.0.0-20190625015134-976e0346caa8 // indirect
 	github.com/kr/pty v1.1.8 // indirect
 	github.com/mailru/easyjson v0.0.0-20190626092158-b2ccc519800e // indirect
 	github.com/munnerz/goautoneg v0.0.0-20190414153302-2ae31c8b6b30 // indirect

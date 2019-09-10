@@ -93,6 +93,7 @@
           }
         ]
       },
+      "replicate": true,
       "t_proc": 2,
       "hw_reqs": 1,
       "iot_reqs": [

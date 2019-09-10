@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"foglute/internal/model"
 	"foglute/pkg/deployment"
+	"github.com/jinzhu/copier"
 	"log"
 	"os"
 	"os/exec"
@@ -45,8 +46,11 @@ func (eu *EdgeUsher) GetPlacements(mode deployment.Mode, application *model.Appl
 
 	table := NewSymbolTable()
 
+	// Apply transformations
+	processedApp := processApp(application)
+
 	// Cleanup strings within the objects
-	safeApp := cleanApp(application, table)
+	safeApp := cleanApp(processedApp, table)
 	safeInfr := cleanInfrastructure(infrastructure, table)
 
 	// Generate Problog code
@@ -74,6 +78,60 @@ func (eu *EdgeUsher) GetPlacements(mode deployment.Mode, application *model.Appl
 	cleanedPlacements := cleanPlacements(placements, table)
 
 	return cleanedPlacements, nil
+}
+
+func processApp(application *model.Application, infrastructure *model.Infrastructure, execPath string) (*model.Application, error) {
+
+	var processed *model.Application
+	err := copier.Copy(processed, application)
+	if err != nil {
+		return nil, err
+	}
+
+	infrCode := getPlCodeFromInfrastructure(infrastructure)
+
+	for i, service := range processed.Services {
+		if service.Replicate {
+
+			log.Printf("Service %s is a replicant.", service.Id)
+
+			app := &model.Application{
+				ID:           "temp",
+				Name:         "temp",
+				Services:     []model.Service{service},
+				Flows:        make([]model.Flow, 0),
+				MaxLatencies: make([]model.MaxLatencyDescription, 0),
+			}
+
+			appCode := getPlCodeFromApplication(app)
+
+			code := getCode(appCode, infrCode, execPath)
+
+			log.Println("Replicant code", code)
+
+			result, err := callProblog(code)
+			if err != nil {
+				return nil, err
+			}
+
+			log.Println("EdgeUsher raw result", result)
+
+			placements, err := parseResult(result)
+			if err != nil {
+				return nil, err
+			}
+
+			if len(placements) == 1 && placements[0].Probability == 0 {
+				return nil, fmt.Errorf("no placements available")
+			}
+
+			// TODO: add new fake services with names and Env. variables. (maybe we can create variables later in the processing, when building the deployment)
+			// TODO: Later I'll know if a service is a replicant, and with the name I build proper env vars. The service must be aware of this!
+
+		}
+	}
+
+	return processed, nil
 }
 
 func getCode(appCode string, infrCode string, execPath string) string {
