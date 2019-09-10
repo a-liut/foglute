@@ -30,12 +30,13 @@ type Application struct {
 
 // A Service is a part of an application that can be executed.
 type Service struct {
-	Id      string   `json:"id"`
-	TProc   int      `json:"t_proc"`
-	HWReqs  int      `json:"hw_reqs"`
-	IoTReqs []string `json:"iot_reqs"`
-	SecReqs []string `json:"sec_reqs"`
-	Image   Image    `json:"image"`
+	Id       string   `json:"id"`
+	TProc    int      `json:"t_proc"`
+	HWReqs   int      `json:"hw_reqs"`
+	IoTReqs  []string `json:"iot_reqs"`
+	SecReqs  []string `json:"sec_reqs"`
+	Image    Image    `json:"image"`
+	NodeName string   `json:"node_name"`
 }
 
 // An Image is a description of a Docker image to be used by a Service
@@ -130,6 +131,7 @@ func (p Placement) String() string {
 
 // An Assignment is a pair Node-Service produced by a Placement Analyzer
 type Assignment struct {
-	ServiceID string
-	NodeID    string
+	ServiceID string `json:"service_id"`
+	NodeID    string `json:"node_id"`
+	NodeName  string `json:"node_name"`
 }

@@ -252,6 +252,21 @@ func (manager *Manager) deploy(application *model.Application) (*model.Placement
 		return nil, []error{fmt.Errorf("cannot devise a placement for app %s: %s", application.ID, err)}
 	}
 
+	// fixing ids
+	ids := map[string]string{}
+	for _, node := range currentInfrastructure.Nodes {
+		ids[node.Name] = node.ID
+	}
+
+	for i := range best.Assignments {
+		a := &best.Assignments[i]
+		if id, exists := ids[a.NodeName]; exists {
+			a.NodeID = id
+		} else {
+			return nil, []error{fmt.Errorf("cannot find node id for %s", a.NodeName)}
+		}
+	}
+
 	log.Printf("Best placement: %s\n", best)
 
 	deployErrors := manager.performPlacement(application, currentInfrastructure, best)
@@ -331,6 +346,7 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 	for _, n := range infrastructure.Nodes {
 		if n.ID == assignment.NodeID {
 			node = &n
+			break
 		}
 	}
 
@@ -559,8 +575,8 @@ func (manager *Manager) getInfrastructure() (*model.Infrastructure, error) {
 				i.Links[j].Probability = 1
 				i.Links[j].Bandwidth = defaultLinkBandwidth
 				i.Links[j].Latency = defaultLinkLatency
-				i.Links[j].Src = src.ID
-				i.Links[j].Dst = dst.ID
+				i.Links[j].Src = src.Name
+				i.Links[j].Dst = dst.Name
 
 				j++
 			}

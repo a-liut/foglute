@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 )
 
 const (
@@ -49,18 +50,16 @@ func (eu *EdgeUsher) GetPlacements(mode deployment.Mode, application *model.Appl
 	safeApp := cleanApp(application, table)
 	safeInfr := cleanInfrastructure(infrastructure, table)
 
-	// Generate Problog code
-	appProlog := getPlCodeFromApplication(safeApp)
-	infrProlog := getPlCodeFromInfrastructure(safeInfr)
+	log.Println("Before cleanup: ", getCode(application, infrastructure, euPath))
 
-	code := getCode(appProlog, infrProlog, euPath)
+	code := getCode(safeApp, safeInfr, euPath)
 
 	result, err := callProblog(code)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Println("EdgeUsher raw result", result)
+	//log.Println("EdgeUsher raw result", result)
 
 	placements, err := parseResult(result)
 	if err != nil {
@@ -76,8 +75,26 @@ func (eu *EdgeUsher) GetPlacements(mode deployment.Mode, application *model.Appl
 	return cleanedPlacements, nil
 }
 
-func getCode(appCode string, infrCode string, execPath string) string {
-	return appCode + "\n" + infrCode + "\n\n:- consult('" + execPath + "').\nquery(placement(Chain, Placement, Routes)).\n"
+func getCode(app *model.Application, infr *model.Infrastructure, execPath string) string {
+	// Generate Problog code
+	appProlog := getPlCodeFromApplication(app)
+	infrProlog := getPlCodeFromInfrastructure(infr)
+
+	// Make placements
+	placements := make([]string, len(app.Services))
+
+	for i, service := range app.Services {
+		n := service.NodeName
+		if service.NodeName == "" {
+			n = fmt.Sprintf("N%d", i)
+		}
+
+		placements[i] = fmt.Sprintf("on(%s, %s)", service.Id, n)
+	}
+
+	placementsCode := "[" + strings.Join(placements, ",") + "]"
+
+	return appProlog + "\n" + infrProlog + "\n\n:- consult('" + execPath + "').\nquery(placement(Chain, " + placementsCode + ", Routes)).\n"
 }
 
 // Converts all strings in placements to get real names for services and nodes using symbol tables.
@@ -88,7 +105,7 @@ func cleanPlacements(placements []model.Placement, table *SymbolTable) []model.P
 		cleaned[i].Assignments = make([]model.Assignment, len(p.Assignments))
 		for j, a := range p.Assignments {
 			cleaned[i].Assignments[j].ServiceID = table.GetByUID(a.ServiceID)
-			cleaned[i].Assignments[j].NodeID = table.GetByUID(a.NodeID)
+			cleaned[i].Assignments[j].NodeName = table.GetByUID(a.NodeName)
 		}
 	}
 	return cleaned
@@ -115,6 +132,9 @@ func cleanApp(application *model.Application, table *SymbolTable) *model.Applica
 		c.IoTReqs = make([]string, len(s.IoTReqs))
 		c.SecReqs = make([]string, len(s.SecReqs))
 		c.Image = s.Image
+		if s.NodeName != "" {
+			c.NodeName = table.Add(s.NodeName)
+		}
 
 		for ir, r := range s.IoTReqs {
 			c.IoTReqs[ir] = table.Add(r)
