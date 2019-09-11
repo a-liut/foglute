@@ -236,7 +236,10 @@ func (manager *Manager) deploy(application *model.Application) (*model.Placement
 		return nil, []error{err}
 	}
 
-	log.Printf("current Infrastructure: (%d) %s\n", len(currentInfrastructure.Nodes), currentInfrastructure)
+	log.Printf("current Infrastructure: (%d)\n", len(currentInfrastructure.Nodes))
+	for _, n := range currentInfrastructure.Nodes {
+		log.Printf("(%s) %s\n", n.ID, n.Name)
+	}
 
 	log.Printf("Getting a deployment for app %s (%s)\n", application.Name, application.ID)
 
@@ -267,7 +270,10 @@ func (manager *Manager) deploy(application *model.Application) (*model.Placement
 		}
 	}
 
-	log.Printf("Best placement: %s\n", best)
+	log.Printf("Best placement: (P = %d)\n", best.Probability)
+	for _, a := range best.Assignments {
+		log.Printf("(%s) %s\n", a.NodeID, a.NodeName)
+	}
 
 	deployErrors := manager.performPlacement(application, currentInfrastructure, best)
 
