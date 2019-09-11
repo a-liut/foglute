@@ -272,7 +272,7 @@ func (manager *Manager) deploy(application *model.Application) (*model.Placement
 
 	log.Printf("Best placement: (P = %f)\n", best.Probability)
 	for _, a := range best.Assignments {
-		log.Printf("(%s) %s\n", a.NodeID, a.NodeName)
+		log.Printf("%s on (%s) %s\n", a.ServiceID, a.NodeID, a.NodeName)
 	}
 
 	deployErrors := manager.performPlacement(application, currentInfrastructure, best)
