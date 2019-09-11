@@ -270,7 +270,7 @@ func (manager *Manager) deploy(application *model.Application) (*model.Placement
 		}
 	}
 
-	log.Printf("Best placement: (P = %d)\n", best.Probability)
+	log.Printf("Best placement: (P = %f)\n", best.Probability)
 	for _, a := range best.Assignments {
 		log.Printf("(%s) %s\n", a.NodeID, a.NodeName)
 	}
