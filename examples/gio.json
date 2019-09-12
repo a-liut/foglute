@@ -87,7 +87,8 @@
           "DEVICE_SERVICE_HOST": "gio-device-ms-endpoint",
           "DEVICE_SERVICE_PORT": "5001",
           "CALLBACK_HOST": "localhost",
-          "CALLBACK_PORT": "5006"
+          "CALLBACK_PORT": "5006",
+          "DEVICE_SERVICE_ROOM_NAME": "default"
         },
         "ports": [
           {
@@ -116,7 +117,8 @@
           "DEVICE_SERVICE_HOST": "gio-device-ms-endpoint",
           "DEVICE_SERVICE_PORT": "5001",
           "CALLBACK_HOST": "localhost",
-          "CALLBACK_PORT": "5007"
+          "CALLBACK_PORT": "5007",
+          "DEVICE_SERVICE_ROOM_NAME": "default"
         },
         "ports": [
           {
