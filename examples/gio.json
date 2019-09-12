@@ -1,6 +1,6 @@
 {
-  "id": "gio",
-  "name": "gio",
+  "id": "gioplants",
+  "name": "gioplants",
   "services": [
     {
       "id": "frontend",
@@ -56,8 +56,11 @@
         "name": "gio-device-ms:latest",
         "local": true,
         "env": {
-          "DEVICE_DRIVER_HOST": "gio-device-driver-endpoint",
-          "DEVICE_DRIVER_PORT": "5006"
+          "DEVICE_DRIVER_0_HOST": "gio-device-driver-1-endpoint",
+          "DEVICE_DRIVER_0_PORT": "5006",
+          "DEVICE_DRIVER_1_HOST": "gio-device-driver-2-endpoint",
+          "DEVICE_DRIVER_1_PORT": "5007",
+          "DEVICE_DRIVER_COUNT": "2"
         },
         "ports": [
           {
@@ -80,7 +83,6 @@
         "name": "gio-device-driver:latest",
         "local": true,
         "env": {
-          "FOG_NODE_HOST": "10.44.0.0",
           "FOG_NODE_PORT": "5003",
           "DEVICE_SERVICE_HOST": "gio-device-ms-endpoint",
           "DEVICE_SERVICE_PORT": "5001",
@@ -110,7 +112,6 @@
         "name": "gio-device-driver:latest",
         "local": true,
         "env": {
-          "FOG_NODE_HOST": "10.44.0.0",
           "FOG_NODE_PORT": "5003",
           "DEVICE_SERVICE_HOST": "gio-device-ms-endpoint",
           "DEVICE_SERVICE_PORT": "5001",
