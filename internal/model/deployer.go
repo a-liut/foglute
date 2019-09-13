@@ -104,7 +104,7 @@ type Location struct {
 // A NodeProfile describes the capabilities of a node taking in consideration the probability of that configuration
 type NodeProfile struct {
 	Probability float64  `json:"probability"`
-	HWCaps      int      `json:"hw_caps"`
+	HWCaps      int64    `json:"hw_caps"`
 	IoTCaps     []string `json:"iot_caps"`
 	SecCaps     []string `json:"sec_caps"`
 }

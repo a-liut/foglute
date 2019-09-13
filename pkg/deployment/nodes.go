@@ -52,12 +52,16 @@ func convertNode(node apiv1.Node) model.Node {
 		n.Profiles[0].SecCaps = make([]string, 0)
 	}
 
-	if hwCaps, err := strconv.ParseInt(node.Labels[config.HwCapsLabel], 10, 32); err == nil {
-		n.Profiles[0].HWCaps = int(hwCaps)
-	} else {
-		// Default value
-		n.Profiles[0].HWCaps = model.NodeDefaultHwCaps
-	}
+	n.Profiles[0].HWCaps = getHwCaps(&node)
 
 	return n
+}
+
+func getHwCaps(node *apiv1.Node) int64 {
+	m := node.Status.Capacity.Memory().Value()
+	if m <= 0 {
+		return model.NodeDefaultHwCaps
+	}
+
+	return m
 }
