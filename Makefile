@@ -7,8 +7,11 @@ GOARCH=arm
 main: setup
 	go build -o $(BIN_FOLDER)/$(BIN_NAME) cmd/foglute/main.go
 
+linux: setup
+	GOOS=linux GOARCH=amd64 go build -o $(BIN_FOLDER)/$(BIN_NAME) cmd/foglute/main.go
+
 arm: setup
-	GOARM=$(GOARM)	GOARCH=$(GOARCH) go build -o $(BIN_FOLDER)/$(BIN_NAME) cmd/foglute/main.go
+	GOARM=$(GOARM) GOARCH=$(GOARCH) go build -o $(BIN_FOLDER)/$(BIN_NAME) cmd/foglute/main.go
 
 .PHONY: setup
 setup:

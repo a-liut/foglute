@@ -59,8 +59,6 @@ func (eu *EdgeUsher) GetPlacements(mode deployment.Mode, application *model.Appl
 		return nil, err
 	}
 
-	//log.Println("EdgeUsher raw result", result)
-
 	placements, err := parseResult(result)
 	if err != nil {
 		return nil, err
