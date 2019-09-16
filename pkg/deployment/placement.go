@@ -14,13 +14,15 @@ func pickBestPlacement(placements []model.Placement) (*model.Placement, error) {
 
 	// Scan placements and pick the best ones
 	list := make([]*model.Placement, 0)
-	bestProb := 0.0
+	bestProb := -1.0
 	for _, p := range placements {
 		if bestProb < p.Probability {
 			// Clear the list
 			list = list[:0]
 
 			list = append(list, &p)
+
+			bestProb = p.Probability
 		} else if bestProb == p.Probability {
 			list = append(list, &p)
 		}

@@ -28,7 +28,7 @@ import (
 func main() {
 	log.Println("Starting FogLute")
 
-	rand.New(rand.NewSource(time.Now().UnixNano()))
+	rand.Seed(time.Now().UnixNano())
 
 	var kubeconfig *string
 	if home := homeDir(); home != "" {
