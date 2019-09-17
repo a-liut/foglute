@@ -35,7 +35,7 @@ type Service struct {
 	HWReqs   int      `json:"hw_reqs"`
 	IoTReqs  []string `json:"iot_reqs"`
 	SecReqs  []string `json:"sec_reqs"`
-	Image    Image    `json:"image"`
+	Images   []Image  `json:"images"`
 	NodeName string   `json:"node_name"`
 }
 

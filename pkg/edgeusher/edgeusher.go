@@ -129,7 +129,7 @@ func cleanApp(application *model.Application, table *SymbolTable) *model.Applica
 		c.HWReqs = s.HWReqs
 		c.IoTReqs = make([]string, len(s.IoTReqs))
 		c.SecReqs = make([]string, len(s.SecReqs))
-		c.Image = s.Image
+		c.Images = s.Images
 		if s.NodeName != "" {
 			c.NodeName = table.Add(s.NodeName)
 		}

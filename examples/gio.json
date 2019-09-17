@@ -4,23 +4,24 @@
   "services": [
     {
       "id": "frontend",
-      "image": {
-        "name": "gio-frontend-ms:latest",
-        "local": true,
-        "env": {
-          "API_GATEWAY_HOST": "gio-api-gateway-endpoint",
-          "API_GATEWAY_PORT": "5000"
-        },
-        "ports": [
-          {
-            "name": "gio-frontend-endpoint",
-            "host_port": 5005,
-            "container_port": 8080,
-            "expose": 30005
-          }
-        ]
-      },
-      "node_name": "k8s-node-3",
+      "images": [
+        {
+          "name": "gio-frontend-ms:latest",
+          "local": true,
+          "env": {
+            "API_GATEWAY_HOST": "gio-api-gateway-endpoint",
+            "API_GATEWAY_PORT": "5000"
+          },
+          "ports": [
+            {
+              "name": "gio-frontend-endpoint",
+              "host_port": 5005,
+              "container_port": 8080,
+              "expose": 30005
+            }
+          ]
+        }
+      ],
       "t_proc": 2,
       "hw_reqs": 1,
       "iot_reqs": [],
@@ -28,22 +29,24 @@
     },
     {
       "id": "api-gateway",
-      "image": {
-        "name": "gio-api-gateway-ms:latest",
-        "local": true,
-        "env": {
-          "DEVICE_SERVICE_HOST": "gio-device-ms-endpoint",
-          "DEVICE_SERVICE_PORT": "5001"
-        },
-        "ports": [
-          {
-            "name": "gio-api-gateway-endpoint",
-            "host_port": 5000,
-            "container_port": 8080,
-            "expose": 30000
-          }
-        ]
-      },
+      "images": [
+        {
+          "name": "gio-api-gateway-ms:latest",
+          "local": true,
+          "env": {
+            "DEVICE_SERVICE_HOST": "gio-device-ms-endpoint",
+            "DEVICE_SERVICE_PORT": "5001"
+          },
+          "ports": [
+            {
+              "name": "gio-api-gateway-endpoint",
+              "host_port": 5000,
+              "container_port": 8080,
+              "expose": 30000
+            }
+          ]
+        }
+      ],
       "node_name": "k8s-node-3",
       "t_proc": 2,
       "hw_reqs": 1,
@@ -52,26 +55,27 @@
     },
     {
       "id": "device-ms",
-      "image": {
-        "name": "gio-device-ms:latest",
-        "local": true,
-        "env": {
-          "DEVICE_DRIVER_0_HOST": "gio-device-driver-1-endpoint",
-          "DEVICE_DRIVER_0_PORT": "5006",
-          "DEVICE_DRIVER_1_HOST": "gio-device-driver-2-endpoint",
-          "DEVICE_DRIVER_1_PORT": "5007",
-          "DEVICE_DRIVER_COUNT": "2"
-        },
-        "ports": [
-          {
-            "name": "gio-device-ms-endpoint",
-            "host_port": 5001,
-            "container_port": 8080,
-            "expose": 30001
-          }
-        ]
-      },
-      "node_name": "k8s-node-3",
+      "images": [
+        {
+          "name": "gio-device-ms:latest",
+          "local": true,
+          "env": {
+            "DEVICE_DRIVER_0_HOST": "gio-device-driver-1-endpoint",
+            "DEVICE_DRIVER_0_PORT": "5006",
+            "DEVICE_DRIVER_1_HOST": "gio-device-driver-2-endpoint",
+            "DEVICE_DRIVER_1_PORT": "5007",
+            "DEVICE_DRIVER_COUNT": "2"
+          },
+          "ports": [
+            {
+              "name": "gio-device-ms-endpoint",
+              "host_port": 5001,
+              "container_port": 8080,
+              "expose": 30001
+            }
+          ]
+        }
+      ],
       "t_proc": 2,
       "hw_reqs": 1,
       "iot_reqs": [],
@@ -79,26 +83,28 @@
     },
     {
       "id": "device-driver-1",
-      "image": {
-        "name": "gio-device-driver:latest",
-        "local": true,
-        "env": {
-          "FOG_NODE_PORT": "5003",
-          "DEVICE_SERVICE_HOST": "gio-device-ms-endpoint",
-          "DEVICE_SERVICE_PORT": "5001",
-          "CALLBACK_HOST": "localhost",
-          "CALLBACK_PORT": "5006",
-          "DEVICE_SERVICE_ROOM_NAME": "default"
-        },
-        "ports": [
-          {
-            "name": "gio-device-driver-1-endpoint",
-            "host_port": 5006,
-            "container_port": 8080,
-            "expose": 30006
-          }
-        ]
-      },
+      "images": [
+        {
+          "name": "gio-device-driver:latest",
+          "local": true,
+          "env": {
+            "FOG_NODE_PORT": "5003",
+            "DEVICE_SERVICE_HOST": "gio-device-ms-endpoint",
+            "DEVICE_SERVICE_PORT": "5001",
+            "CALLBACK_HOST": "localhost",
+            "CALLBACK_PORT": "5006",
+            "DEVICE_SERVICE_ROOM_NAME": "default"
+          },
+          "ports": [
+            {
+              "name": "gio-device-driver-1-endpoint",
+              "host_port": 5006,
+              "container_port": 8080,
+              "expose": 30006
+            }
+          ]
+        }
+      ],
       "node_name": "k8s-node-1",
       "t_proc": 2,
       "hw_reqs": 1,
@@ -109,26 +115,28 @@
     },
     {
       "id": "device-driver-2",
-      "image": {
-        "name": "gio-device-driver:latest",
-        "local": true,
-        "env": {
-          "FOG_NODE_PORT": "5003",
-          "DEVICE_SERVICE_HOST": "gio-device-ms-endpoint",
-          "DEVICE_SERVICE_PORT": "5001",
-          "CALLBACK_HOST": "localhost",
-          "CALLBACK_PORT": "5007",
-          "DEVICE_SERVICE_ROOM_NAME": "default"
-        },
-        "ports": [
-          {
-            "name": "gio-device-driver-2-endpoint",
-            "host_port": 5007,
-            "container_port": 8080,
-            "expose": 30007
-          }
-        ]
-      },
+      "images": [
+        {
+          "name": "gio-device-driver:latest",
+          "local": true,
+          "env": {
+            "FOG_NODE_PORT": "5003",
+            "DEVICE_SERVICE_HOST": "gio-device-ms-endpoint",
+            "DEVICE_SERVICE_PORT": "5001",
+            "CALLBACK_HOST": "localhost",
+            "CALLBACK_PORT": "5007",
+            "DEVICE_SERVICE_ROOM_NAME": "default"
+          },
+          "ports": [
+            {
+              "name": "gio-device-driver-2-endpoint",
+              "host_port": 5007,
+              "container_port": 8080,
+              "expose": 30007
+            }
+          ]
+        }
+      ],
       "node_name": "k8s-node-2",
       "t_proc": 2,
       "hw_reqs": 1,

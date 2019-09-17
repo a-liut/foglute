@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/pointer"
 	"log"
+	"strings"
 	"sync"
 	"time"
 )
@@ -334,6 +335,105 @@ func (manager *Manager) performPlacement(application *model.Application, infrast
 	return nil
 }
 
+func getPullPolicy(image model.Image) apiv1.PullPolicy {
+	if image.Local {
+		return apiv1.PullNever
+	}
+
+	return apiv1.PullAlways
+}
+
+func getSecContext(image model.Image) *apiv1.SecurityContext {
+	tt := true
+	secContext := &apiv1.SecurityContext{}
+	// Set privileged mode
+	if image.Privileged {
+		secContext.Privileged = &tt
+	}
+
+	return secContext
+}
+
+func processEnv(image model.Image) []apiv1.EnvVar {
+	env := make([]apiv1.EnvVar, len(image.Env))
+	iEnv := 0
+	for varName, varValue := range image.Env {
+		env[iEnv].Name = varName
+		env[iEnv].Value = varValue
+		iEnv++
+	}
+
+	return env
+}
+
+func createServiceFromPort(application *model.Application, assignment *model.Assignment, serviceName string, port model.Port) *apiv1.Service {
+	return &apiv1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: serviceName,
+			Labels: map[string]string{
+				fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
+				fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
+			},
+		},
+		Spec: apiv1.ServiceSpec{
+			Ports: []apiv1.ServicePort{
+				{
+					Protocol: "TCP",
+					NodePort: int32(port.Expose),
+					Port:     int32(port.HostPort),
+					TargetPort: intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: int32(port.ContainerPort),
+						StrVal: string(port.ContainerPort),
+					},
+				},
+			},
+			Selector: map[string]string{
+				fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
+				fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
+			},
+			Type: apiv1.ServiceTypeLoadBalancer,
+		},
+	}
+}
+
+func createDeployment(application *model.Application, assignment *model.Assignment, node *model.Node, containers []apiv1.Container) *appsv1.Deployment {
+	deploymentName := fmt.Sprintf("%s-%s", application.ID, assignment.ServiceID)
+
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: deploymentName,
+			Labels: map[string]string{
+				fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
+				fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: pointer.Int32Ptr(1),
+			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{
+				fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
+				fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
+			}},
+			Template: apiv1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
+						fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
+					},
+				},
+				Spec: apiv1.PodSpec{
+					NodeName:   node.Name, // Deploy the pod to the selected node only
+					Hostname:   deploymentName,
+					Containers: containers,
+				}},
+		},
+	}
+}
+
+func cleanImageName(image model.Image) string {
+	return strings.Replace(image.Name, ":", "", -1)
+}
+
 // Returns Kubernetes Deployments and Services for the given Application according to a given Assignment
 func (manager *Manager) createDeploymentFromAssignment(application *model.Application, infrastructure *model.Infrastructure, assignment *model.Assignment) (*appsv1.Deployment, []*apiv1.Service, error) {
 	var service *model.Service
@@ -363,117 +463,55 @@ func (manager *Manager) createDeploymentFromAssignment(application *model.Applic
 	log.Printf("Creating %s deployment...", assignment.ServiceID)
 
 	services := make([]*apiv1.Service, 0)
+	containers := make([]apiv1.Container, 0)
 
-	// Image pull policy
-	pullPolicy := apiv1.PullAlways
-	if service.Image.Local {
-		pullPolicy = apiv1.PullNever
-	}
+	for _, image := range service.Images {
+		// Image pull policy
+		pullPolicy := getPullPolicy(image)
 
-	tt := true
-	secContext := &apiv1.SecurityContext{}
-	// Set privileged mode
-	if service.Image.Privileged {
-		secContext.Privileged = &tt
-	}
+		secContext := getSecContext(image)
 
-	// Checking env variables
-	log.Printf("Environment variables to set: %v\n", service.Image.Env)
+		// Checking env variables
+		log.Printf("Environment variables to set: %v\n", image.Env)
 
-	env := make([]apiv1.EnvVar, len(service.Image.Env))
-	iEnv := 0
-	for varName, varValue := range service.Image.Env {
-		env[iEnv].Name = varName
-		env[iEnv].Value = varValue
-		iEnv++
-	}
+		env := processEnv(image)
 
-	var ports []apiv1.ContainerPort
-	if len(service.Image.Ports) > 0 {
-		ports = make([]apiv1.ContainerPort, len(service.Image.Ports))
+		var ports []apiv1.ContainerPort
+		if len(image.Ports) > 0 {
+			ports = make([]apiv1.ContainerPort, len(image.Ports))
 
-		for i, port := range service.Image.Ports {
-			ports[i].Name = "http"
-			ports[i].Protocol = apiv1.ProtocolTCP
-			ports[i].ContainerPort = int32(port.ContainerPort)
-			ports[i].HostPort = int32(port.HostPort)
+			for i, port := range image.Ports {
+				ports[i].Name = "http"
+				ports[i].Protocol = apiv1.ProtocolTCP
+				ports[i].ContainerPort = int32(port.ContainerPort)
+				ports[i].HostPort = int32(port.HostPort)
 
-			if port.Expose > 0 {
-				serviceName := port.Name
+				if port.Expose > 0 {
+					serviceName := port.Name
 
-				// Create a service for it
-				s := &apiv1.Service{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: serviceName,
-						Labels: map[string]string{
-							fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
-							fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
-						},
-					},
-					Spec: apiv1.ServiceSpec{
-						Ports: []apiv1.ServicePort{
-							{
-								Protocol: "TCP",
-								NodePort: int32(port.Expose),
-								Port:     int32(port.HostPort),
-								TargetPort: intstr.IntOrString{
-									Type:   intstr.Int,
-									IntVal: int32(port.ContainerPort),
-									StrVal: string(port.ContainerPort),
-								},
-							},
-						},
-						Selector: map[string]string{
-							fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
-							fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
-						},
-						Type: apiv1.ServiceTypeLoadBalancer,
-					},
+					// Create a service for it
+					s := createServiceFromPort(application, assignment, serviceName, port)
+
+					services = append(services, s)
 				}
-
-				services = append(services, s)
 			}
 		}
+
+		cleanImageName := cleanImageName(image)
+		containerName := fmt.Sprintf("%s-%s", service.Id, cleanImageName)
+
+		// Add a container for each image found
+		containers = append(containers, apiv1.Container{
+			Name:            containerName,
+			Image:           image.Name,
+			ImagePullPolicy: pullPolicy,
+			Ports:           ports,
+			SecurityContext: secContext,
+			Env:             env,
+		})
 	}
 
-	deploymentName := fmt.Sprintf("%s-%s", application.ID, assignment.ServiceID)
-
-	deployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: deploymentName,
-			Labels: map[string]string{
-				fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
-				fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
-			},
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: pointer.Int32Ptr(1),
-			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{
-				fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
-				fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
-			}},
-			Template: apiv1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						fmt.Sprintf("%s/app", config.FoglutePackageName):     application.Name, // TODO: Use a unique ID
-						fmt.Sprintf("%s/service", config.FoglutePackageName): assignment.ServiceID,
-					},
-				},
-				Spec: apiv1.PodSpec{
-					NodeName: node.Name, // Deploy the pod to the right node only
-					Hostname: deploymentName,
-					Containers: []apiv1.Container{
-						{
-							Name:            service.Id,
-							Image:           service.Image.Name,
-							ImagePullPolicy: pullPolicy,
-							Ports:           ports,
-							SecurityContext: secContext,
-							Env:             env,
-						},
-					}}},
-		},
-	}
+	deployment := createDeployment(application, assignment, node, containers)
 
 	return deployment, services, nil
 }
@@ -505,23 +543,26 @@ func (manager *Manager) delete(application *model.Application) []error {
 			log.Printf("Deployment %s deleted.\n", s.Id)
 		}
 
-		for _, port := range s.Image.Ports {
-			if port.Expose > 0 {
-				// Remove the associated service
-				serviceName := port.Name
+		for _, image := range s.Images {
+			for _, port := range image.Ports {
+				if port.Expose > 0 {
+					// Remove the associated service
+					serviceName := port.Name
 
-				log.Printf("Deleting Service %s...\n", serviceName)
+					log.Printf("Deleting Service %s...\n", serviceName)
 
-				if err := serviceClient.Delete(serviceName, &metav1.DeleteOptions{
-					PropagationPolicy: &deletePolicy,
-				}); err != nil {
-					log.Printf("Cannot delete Service %s: %s\n", serviceName, err)
-					errors = append(errors, err)
-				} else {
-					log.Printf("Service %s deleted.\n", serviceName)
+					if err := serviceClient.Delete(serviceName, &metav1.DeleteOptions{
+						PropagationPolicy: &deletePolicy,
+					}); err != nil {
+						log.Printf("Cannot delete Service %s: %s\n", serviceName, err)
+						errors = append(errors, err)
+					} else {
+						log.Printf("Service %s deleted.\n", serviceName)
+					}
 				}
 			}
 		}
+
 	}
 
 	elapsed := time.Since(startTime)
