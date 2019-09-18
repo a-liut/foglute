@@ -1,7 +1,7 @@
 # FogLute
 
-FogLute is a software tool that manges applications over a Kubernetes cluster.
-For the application it manager, it decides the best placement possible and deploy them consequently.
+FogLute is a software tool that manages applications over a Kubernetes cluster.
+For the application it manager, it decides the best placement possible and deploys them consequently.
 
 # Run
 
