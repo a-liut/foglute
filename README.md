@@ -1,13 +1,13 @@
 # FogLute
 
-FogLute is a software tool that manages applications over a Kubernetes cluster.
-For the application it manager, it decides the best placement possible and deploys them consequently.
+FogLute is a software tool that manages multi-service applications over a Kubernetes cluster.
+For each application it manages, it decides the best placement possible and deploys them consequently.
 
 # Run
 
 FogLute is developed as a Go module. Run `go build` to produce the executable.
 
-Make sure to have `edgeusher`, `problog` and `kubectl` installed.
+Make sure to have `edgeusher`, `problog` and `kubectl` properly installed.
 
 # Basics
 
@@ -21,9 +21,7 @@ and maintained by FogLute.
 
 ## How to use FogLute
 
-FogLute exposes a REST interface
-
-###
+Interactions with FogLute are implemented through a RESTful interface.
 
 - GET /applications: gets information about all active applications
 
@@ -193,52 +191,7 @@ FogLute exposes a REST interface
      ```
 - POST /applications: requests the deploy of a new application
 
-    Example body:
-        
-     ```json
-      {
-        "id": "test-app-1",
-        "name": "TestApp1",
-        "services": [
-          {
-            "id": "s1",
-            "image": {
-              "name": "nginx:1.12"
-            },
-            "t_proc": 2,
-            "hw_reqs": 1,
-            "iot_reqs": [],
-            "sec_reqs": []
-          },
-          {
-            "id": "s2",
-            "image": {
-              "name": "nginx:1.12"
-            },
-            "t_proc": 2,
-            "hw_reqs": 1,
-            "iot_reqs": [],
-            "sec_reqs": []
-          }
-        ],
-        "flows": [
-          {
-            "src": "s1",
-            "dst": "s2",
-            "bandwidth": 10
-          }
-        ],
-        "max_latency": [
-          {
-            "chain": [
-              "s1",
-              "s2"
-            ],
-            "value": 150
-          }
-        ]
-      }
-     ```
+    Example body: see https://github.com/a-liut/foglute/blob/master/examples/gio.json
   
     Example response:
     ```json
@@ -422,7 +375,3 @@ FogLute exposes a REST interface
       "error": ""
   }
   ```
-
-## TODO
-
-- Watch the infrastructure and redeploy services if needed.

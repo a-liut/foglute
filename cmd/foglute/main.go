@@ -68,7 +68,7 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	// Start HTTP interface
+	// Start HTTP server
 	go func() {
 		defer wg.Done()
 

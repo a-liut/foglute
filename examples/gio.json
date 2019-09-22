@@ -74,6 +74,10 @@
               "expose": 30001
             }
           ]
+        },
+        {
+          "name": "mongo:latest",
+          "local": false
         }
       ],
       "t_proc": 2,

@@ -73,6 +73,7 @@ func (eu *EdgeUsher) GetPlacements(mode deployment.Mode, application *model.Appl
 	return cleanedPlacements, nil
 }
 
+// Returns Problog code from an application and an infrastructure
 func getCode(app *model.Application, infr *model.Infrastructure, execPath string) string {
 	// Generate Problog code
 	appProlog := getPlCodeFromApplication(app)

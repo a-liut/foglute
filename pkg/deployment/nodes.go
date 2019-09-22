@@ -1,3 +1,11 @@
+/*
+ * FogLute
+ *
+ * A Microservice Fog Orchestration platform.
+ *
+ * API version: 1.0.0
+ * Contact: andrea.liut@gmail.com
+ */
 package deployment
 
 import (
@@ -57,6 +65,7 @@ func convertNode(node apiv1.Node) model.Node {
 	return n
 }
 
+// Extracts Hardware capabilities from a node
 func getHwCaps(node *apiv1.Node) int64 {
 	m := node.Status.Capacity.Memory().Value()
 	if m <= 0 {
